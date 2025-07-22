@@ -1,0 +1,70 @@
+# --- Global ---
+.env
+*.env
+*.env.*
+
+# --- Python / Backend ---
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/.DS_Store
+backend/.vscode/
+backend/.idea/
+backend/.pylint.d/
+backend/.python-version
+backend/.ruff_cache/
+backend/.ipynb_checkpoints/
+backend/alembic/versions/*.pyc
+backend/alembic/versions/__pycache__/
+backend/alembic/versions/*.pyc
+backend/alembic/versions/*.pyo
+backend/alembic/versions/*.pyd
+
+# Byte-compiled / optimized / DLL files
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+
+# Database files (if any local SQLite, not MySQL)
+*.sqlite3
+*.db
+
+# --- Node / Frontend ---
+frontend/node_modules/
+frontend/.next/
+frontend/.env
+frontend/.env.*
+frontend/.DS_Store
+frontend/.vscode/
+frontend/.idea/
+frontend/.eslintcache
+frontend/.turbo/
+frontend/.vercel/
+frontend/.npm/
+frontend/.yarn/
+frontend/.cache/
+frontend/package-lock.json # (optional, if you use yarn.lock instead)
+frontend/yarn.lock         # (optional, if you use package-lock.json instead)
+
+# Log files
+*.log
+
+# --- Docker ---
+**/db_data/
+**/db.sqlite3
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# --- Misc ---
+*.swp
+*.swo
+*.bak
+*.tmp
+backend/uploads/*
