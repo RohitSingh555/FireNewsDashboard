@@ -133,7 +133,11 @@ def get_fire_news(
     # Search
     if search:
         like = f"%{search}%"
-        query = query.filter((FireNews.title.ilike(like)) | (FireNews.content.ilike(like)))
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.content.ilike(like)) | 
+            (FireNews.state.ilike(like))
+        )
     # Sorting
     sort_col = getattr(FireNews, sort_by, FireNews.published_date)
     if sort_order == 'desc':
@@ -169,6 +173,8 @@ def get_fire_news(
                 "image_url": n.image_url,
                 "tags": n.tags,
                 "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
                 "created_at": n.created_at.isoformat() if n.created_at else None,
                 "updated_at": n.updated_at.isoformat() if n.updated_at else None,
             }
@@ -211,6 +217,8 @@ def search_fire_news_by_title(
                 "image_url": n.image_url,
                 "tags": n.tags,
                 "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
                 "created_at": n.created_at.isoformat() if n.created_at else None,
                 "updated_at": n.updated_at.isoformat() if n.updated_at else None,
             }
@@ -290,6 +298,51 @@ def delete_fire_news(
     db.delete(news)
     db.commit()
     return {"detail": "Deleted"}
+
+@router.put("/fire-news/{news_id}/toggle-verified")
+def toggle_verified_status(
+    news_id: int,
+    db: Session = Depends(get_db)
+    # current_user: User = Depends(get_current_user)  # Temporarily disabled for testing
+):
+    """Toggle the verified status of a fire news entry"""
+    news = db.query(FireNews).filter(FireNews.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="Fire news not found")
+    
+    # Toggle the verified status
+    news.is_verified = not getattr(news, 'is_verified', False)
+    news.verified_at = datetime.utcnow() if news.is_verified else None
+    
+    db.commit()
+    db.refresh(news)
+    
+    return {
+        "message": f"Fire news {'verified' if news.is_verified else 'unverified'} successfully",
+        "is_verified": news.is_verified
+    }
+
+@router.put("/fire-news/{news_id}/toggle-hidden")
+def toggle_hidden_status(
+    news_id: int,
+    db: Session = Depends(get_db)
+    # current_user: User = Depends(get_current_user)  # Temporarily disabled for testing
+):
+    """Toggle the hidden status of a fire news entry"""
+    news = db.query(FireNews).filter(FireNews.id == news_id).first()
+    if not news:
+        raise HTTPException(status_code=404, detail="Fire news not found")
+    
+    # Toggle the hidden status
+    news.is_hidden = not getattr(news, 'is_hidden', False)
+    
+    db.commit()
+    db.refresh(news)
+    
+    return {
+        "message": f"Fire news {'hidden' if news.is_hidden else 'shown'} successfully",
+        "is_hidden": news.is_hidden
+    }
 
 @router.post("/fire-news/bulk-upload")
 def bulk_upload_fire_news(

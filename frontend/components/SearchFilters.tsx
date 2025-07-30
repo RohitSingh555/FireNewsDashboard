@@ -26,12 +26,7 @@ export default function SearchFilters({
 }: SearchFiltersProps) {
   return (
     <div className={`bg-theme-card rounded-xl shadow-sm border border-theme-border p-4 ${className}`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-theme-primary flex items-center gap-2">
-          <FunnelIcon className="h-5 w-5 text-theme-teal-dark" />
-          Search & Filters
-        </h3>
-      </div>
+      
 
       {/* Search Bar */}
       <div className="mb-4">

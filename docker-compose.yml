@@ -17,22 +17,28 @@ services:
     depends_on:
       - mysql
     ports:
-      - "8000:8000"
+      - "9500:9500"
     restart: always
     volumes:
       - ./backend:/app
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["./start.sh"]
   frontend:
     build: ./frontend
     env_file:
       - ./frontend/.env
+    environment:
+      - PORT=3500
     depends_on:
       - backend
     ports:
-      - "3000:3000"
+      - "3500:3500"
     restart: always
     volumes:
-      - ./frontend:/app
-    command: ["npm", "run", "dev"]
+      - ./frontend/pages:/app/pages
+      - ./frontend/components:/app/components
+      - ./frontend/lib:/app/lib
+      - ./frontend/styles:/app/styles
+      - ./frontend/public:/app/public
+    command: ["npm", "run", "dev", "--", "--port", "3500"]
 volumes:
   db_data:

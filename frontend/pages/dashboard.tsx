@@ -1,36 +1,36 @@
 import * as React from 'react';
 import {
-  HomeIcon,
-  UserCircleIcon,
-  ArrowRightOnRectangleIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  GlobeAltIcon,
-  CalendarDaysIcon,
-  NewspaperIcon,
-  TrashIcon,
-  ExclamationTriangleIcon,
-  ArrowPathIcon,
-  MagnifyingGlassIcon,
-  UsersIcon,
-  ShieldCheckIcon,
-  CogIcon,
-  ChatBubbleLeftRightIcon,
-  GlobeAltIcon as WebIcon,
-  UserGroupIcon,
-  ClockIcon,
-  ChartBarIcon,
-  Cog6ToothIcon,
-  BellIcon,
-  DocumentTextIcon,
-  FireIcon
-} from '@heroicons/react/24/outline';
+  FiHome,
+  FiUser,
+  FiLogOut,
+  FiCheckCircle,
+  FiXCircle,
+  FiGlobe,
+  FiCalendar,
+  FiFileText,
+  FiTrash2,
+  FiAlertTriangle,
+  FiRotateCw,
+  FiSearch,
+  FiUsers,
+  FiShield,
+  FiSettings,
+  FiMessageSquare,
+  FiTrendingUp,
+  FiClock,
+  FiBarChart,
+  FiBell,
+  FiZap,
+  FiEyeOff
+} from 'react-icons/fi';
 import { useAuth } from '../lib/auth';
 import api from '../lib/axios';
 import { useEffect, useRef, useState } from 'react';
 import FiltersAccordion from '../components/FiltersAccordion';
 import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
+import Sidebar from '../components/Sidebar';
+import TopNavigation from '../components/TopNavigation';
 
 // Modal Components
 function ConfirmModal({ open, onClose, onConfirm, message, title = "Confirm Action" }: { 
@@ -60,143 +60,352 @@ function ConfirmModal({ open, onClose, onConfirm, message, title = "Confirm Acti
 }
 
 // View Modal Component
-function ViewModal({ open, onClose, entry }: { 
+function ViewModal({ 
+  open, 
+  onClose, 
+  entry, 
+  onEdit, 
+  onDelete, 
+  onToggleVerified, 
+  onToggleHidden,
+  userRole 
+}: { 
   open: boolean; 
   onClose: () => void; 
   entry: any;
+  onEdit: (entry: any) => void;
+  onDelete: (id: number) => void;
+  onToggleVerified: (id: number) => void;
+  onToggleHidden: (id: number) => void;
+  userRole: string;
 }) {
+  const [activeTab, setActiveTab] = React.useState<'view' | 'edit' | 'actions'>('view');
+  const [editData, setEditData] = React.useState<any>(null);
+  
+  React.useEffect(() => {
+    if (entry) {
+      setEditData({ ...entry });
+    }
+  }, [entry]);
+
   if (!open || !entry) return null;
   
+  const canEdit = userRole === 'admin' || userRole === 'reporter';
+  
+  const handleSave = () => {
+    onEdit(editData);
+    setActiveTab('view');
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setEditData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const tabs = [
+    { id: 'view', label: 'View', icon: '👁️' },
+    ...(canEdit ? [{ id: 'edit', label: 'Edit', icon: '✏️' }] : []),
+    { id: 'actions', label: 'Actions', icon: '⚙️' }
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-theme-card rounded-2xl shadow-2xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden">
+        {/* Header */}
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">{entry.title}</h3>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <h3 className="text-3xl font-bold text-theme-primary mb-2">{entry.title}</h3>
+            <div className="flex items-center gap-4 text-sm text-theme-secondary">
               <span className="flex items-center gap-1">
-                <CalendarDaysIcon className="h-4 w-4" />
+                <FiCalendar className="h-4 w-4" />
                 {entry.published_date ? new Date(entry.published_date).toLocaleDateString() : 'No date'}
               </span>
               <span className="flex items-center gap-1">
-                <NewspaperIcon className="h-4 w-4" />
+                <FiFileText className="h-4 w-4" />
                 {entry.reporter_name || 'Unknown Reporter'}
               </span>
               <span className="flex items-center gap-1">
-                <GlobeAltIcon className="h-4 w-4" />
+                <FiGlobe className="h-4 w-4" />
                 {entry.source || 'Unknown Source'}
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-3xl font-bold">×</button>
+          <button onClick={onClose} className="text-theme-secondary hover:text-theme-primary text-3xl font-bold">×</button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">Content</h4>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{entry.content}</p>
-            </div>
+        {/* Tabs */}
+        <div className="flex space-x-1 mb-6 border-b border-theme-border">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-theme-teal-dark text-white shadow-md'
+                  : 'bg-theme-cool-gray-light text-theme-secondary hover:bg-theme-cool-gray-medium'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-            {entry.url && (
-              <div className="bg-blue-50 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-blue-900 mb-3">Source URL</h4>
-                <a 
-                  href={entry.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 underline break-all"
-                >
-                  {entry.url}
-                </a>
-              </div>
-            )}
-
-            {entry.tags && (
-              <div className="bg-green-50 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-green-900 mb-3">Tags</h4>
-                <div className="flex flex-wrap gap-2">
-                  {entry.tags.split(',').map((tag: string, index: number) => (
-                    <span key={index} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                      {tag.trim()}
-                    </span>
-                  ))}
+        {/* Tab Content */}
+        <div className="overflow-y-auto max-h-[60vh]">
+          {activeTab === 'view' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-theme-background rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-theme-primary mb-3">Content</h4>
+                  <p className="text-theme-secondary leading-relaxed whitespace-pre-wrap">{entry.content}</p>
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Fire Score */}
-            <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-orange-900 mb-3">Fire Related Score</h4>
-              {typeof entry.fire_related_score === 'number' ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-orange-600">{entry.fire_related_score}/10</span>
-                    <FireIcon className="h-8 w-8 text-orange-600" />
+                {entry.url && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Source URL</h4>
+                    <a 
+                      href={entry.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline break-all"
+                    >
+                      {entry.url}
+                    </a>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className="bg-gradient-to-r from-orange-400 to-red-500 h-3 rounded-full transition-all duration-300"
-                      style={{ width: `${(entry.fire_related_score / 10) * 100}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-sm text-orange-700">
-                    {entry.fire_related_score >= 8 ? 'High Priority' : 
-                     entry.fire_related_score >= 6 ? 'Medium Priority' : 'Low Priority'}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-orange-600">
-                  <ExclamationTriangleIcon className="h-6 w-6" />
-                  <span>Score not available</span>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Location */}
-            <div className="bg-blue-50 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-blue-900 mb-3">Location</h4>
-              <div className="space-y-2 text-sm">
-                {entry.state && <div><strong>State:</strong> {entry.state}</div>}
-                {entry.county && <div><strong>County:</strong> {entry.county}</div>}
-                {entry.city && <div><strong>City:</strong> {entry.city}</div>}
-                {entry.country && <div><strong>Country:</strong> {entry.country}</div>}
-                {entry.latitude && entry.longitude && (
-                  <div className="pt-2">
-                    <strong>Coordinates:</strong><br />
-                    {entry.latitude}, {entry.longitude}
+                {entry.tags && (
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">Tags</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {entry.tags.split(',').map((tag: string, index: number) => (
+                        <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 rounded-full text-sm">
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Verification */}
-            {entry.verification_result && (
-              <div className="bg-purple-50 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-purple-900 mb-3">Verification</h4>
-                <div className="space-y-2">
-                  <div><strong>Status:</strong> {entry.verification_result}</div>
-                  {entry.verified_at && (
-                    <div><strong>Verified:</strong> {new Date(entry.verified_at).toLocaleDateString()}</div>
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Fire Score */}
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-3">Fire Related Score</h4>
+                  {typeof entry.fire_related_score === 'number' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">{entry.fire_related_score}/10</span>
+                        <FiZap className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                        <div 
+                          className="bg-gradient-to-r from-orange-400 to-red-500 h-3 rounded-full transition-all duration-300"
+                          style={{ width: `${(entry.fire_related_score / 10) * 100}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-sm text-orange-700 dark:text-orange-300">
+                        {entry.fire_related_score >= 8 ? 'High Priority' : 
+                         entry.fire_related_score >= 6 ? 'Medium Priority' : 'Low Priority'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                      <FiAlertTriangle className="h-6 w-6" />
+                      <span>Score not available</span>
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* Metadata */}
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-3">Metadata</h4>
-              <div className="space-y-2 text-sm text-gray-600">
-                <div><strong>ID:</strong> {entry.id}</div>
-                <div><strong>Created:</strong> {entry.created_at ? new Date(entry.created_at).toLocaleDateString() : 'N/A'}</div>
-                <div><strong>Updated:</strong> {entry.updated_at ? new Date(entry.updated_at).toLocaleDateString() : 'N/A'}</div>
+                {/* Location */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Location</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">State:</span>
+                      <span className="text-sm text-blue-600 dark:text-blue-400">{entry.state || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">County:</span>
+                      <span className="text-sm text-blue-600 dark:text-blue-400">{entry.county || 'Unknown'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Status</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Verified:</span>
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        entry.is_verified 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' 
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                      }`}>
+                        {entry.is_verified ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Hidden:</span>
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        entry.is_hidden 
+                          ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' 
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                      }`}>
+                        {entry.is_hidden ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'edit' && canEdit && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-theme-primary mb-2">Title</label>
+                  <input
+                    type="text"
+                    value={editData?.title || ''}
+                    onChange={(e) => handleChange('title', e.target.value)}
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary focus:ring-2 focus:ring-theme-teal-dark focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-theme-primary mb-2">State</label>
+                  <input
+                    type="text"
+                    value={editData?.state || ''}
+                    onChange={(e) => handleChange('state', e.target.value)}
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary focus:ring-2 focus:ring-theme-teal-dark focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-theme-primary mb-2">County</label>
+                  <input
+                    type="text"
+                    value={editData?.county || ''}
+                    onChange={(e) => handleChange('county', e.target.value)}
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary focus:ring-2 focus:ring-theme-teal-dark focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-theme-primary mb-2">Fire Related Score</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={editData?.fire_related_score || ''}
+                    onChange={(e) => handleChange('fire_related_score', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary focus:ring-2 focus:ring-theme-teal-dark focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-theme-primary mb-2">Content</label>
+                <textarea
+                  value={editData?.content || ''}
+                  onChange={(e) => handleChange('content', e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary focus:ring-2 focus:ring-theme-teal-dark focus:border-transparent"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setActiveTab('view')}
+                  className="px-4 py-2 text-theme-secondary hover:text-theme-primary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-theme-teal-dark text-white rounded-lg hover:bg-theme-teal-medium transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'actions' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Verification Status */}
+                <div className="bg-theme-background rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-theme-primary mb-4">Verification Status</h4>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm px-3 py-2 rounded-lg ${
+                      entry.is_verified 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' 
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                    }`}>
+                      {entry.is_verified ? 'Verified' : 'Not Verified'}
+                    </span>
+                    <button
+                      onClick={() => onToggleVerified(entry.id)}
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        entry.is_verified 
+                          ? 'bg-red-500 text-white hover:bg-red-600' 
+                          : 'bg-green-500 text-white hover:bg-green-600'
+                      }`}
+                    >
+                      {entry.is_verified ? 'Unverify' : 'Verify'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Visibility Status */}
+                <div className="bg-theme-background rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-theme-primary mb-4">Visibility Status</h4>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm px-3 py-2 rounded-lg ${
+                      entry.is_hidden 
+                        ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' 
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                    }`}>
+                      {entry.is_hidden ? 'Hidden' : 'Visible'}
+                    </span>
+                    {canEdit && (
+                      <button
+                        onClick={() => onToggleHidden(entry.id)}
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          entry.is_hidden 
+                            ? 'bg-green-500 text-white hover:bg-green-600' 
+                            : 'bg-red-500 text-white hover:bg-red-600'
+                        }`}
+                      >
+                        {entry.is_hidden ? 'Show' : 'Hide'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              {canEdit && (
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-4">Danger Zone</h4>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => onDelete(entry.id)}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      Delete Entry
+                    </button>
+                    <span className="text-sm text-red-700 dark:text-red-300">
+                      This action cannot be undone.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -419,12 +628,12 @@ function EditModal({ open, onClose, entry, onSave }: {
             >
               {loading ? (
                 <>
-                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  <FiRotateCw className="h-5 w-5 animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <CheckCircleIcon className="h-5 w-5" />
+                  <FiCheckCircle className="h-5 w-5" />
                   Save Changes
                 </>
               )}
@@ -449,10 +658,10 @@ function AdminModal({ open, onClose, users, onUpdateRole, onDeleteUser, activeTa
   if (!open) return null;
   
   const adminTabs = [
-    { id: 'users', name: 'User Management', icon: UserGroupIcon },
-    { id: 'activity', name: 'Activity Log', icon: ClockIcon },
-    { id: 'analytics', name: 'Analytics', icon: ChartBarIcon },
-    { id: 'settings', name: 'Settings', icon: Cog6ToothIcon }
+    { id: 'users', name: 'User Management', icon: FiUsers },
+    { id: 'activity', name: 'Activity Log', icon: FiClock },
+    { id: 'analytics', name: 'Analytics', icon: FiBarChart },
+    { id: 'settings', name: 'Settings', icon: FiSettings }
   ];
 
   const getRoleColor = (role: string) => {
@@ -466,10 +675,10 @@ function AdminModal({ open, onClose, users, onUpdateRole, onDeleteUser, activeTa
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'admin': return <ShieldCheckIcon className="h-4 w-4 text-theme-teal-dark" />;
-      case 'reporter': return <NewspaperIcon className="h-4 w-4 text-theme-success" />;
-      case 'user': return <UserCircleIcon className="h-4 w-4 text-theme-secondary" />;
-      default: return <UserCircleIcon className="h-4 w-4 text-theme-secondary" />;
+      case 'admin': return <FiShield className="h-4 w-4 text-blue-600" />;
+      case 'reporter': return <FiFileText className="h-4 w-4 text-green-500" />;
+      case 'user': return <FiUser className="h-4 w-4 text-gray-500" />;
+      default: return <FiUser className="h-4 w-4 text-gray-500" />;
     }
   };
   
@@ -528,10 +737,10 @@ function AdminModal({ open, onClose, users, onUpdateRole, onDeleteUser, activeTa
                       <tr key={user.id} className="hover:bg-theme-teal-light">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <UserCircleIcon className="h-10 w-10 text-theme-disabled" />
+                            <FiUser className="h-10 w-10 text-gray-400" />
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-theme-primary">{user.username || 'N/A'}</div>
-                              <div className="text-sm text-theme-secondary">ID: {user.id}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{user.username || 'N/A'}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">ID: {user.id}</div>
                             </div>
                           </div>
                         </td>
@@ -565,9 +774,9 @@ function AdminModal({ open, onClose, users, onUpdateRole, onDeleteUser, activeTa
                           ) : (
                             <button
                               onClick={() => onDeleteUser(user.id)}
-                              className="text-theme-danger hover:text-red-600 flex items-center gap-1"
+                              className="text-red-500 hover:text-red-600 flex items-center gap-1"
                             >
-                              <TrashIcon className="h-4 w-4 text-theme-danger" />
+                              <FiTrash2 className="h-4 w-4 text-red-500" />
                               Delete
                             </button>
                           )}
@@ -585,10 +794,10 @@ function AdminModal({ open, onClose, users, onUpdateRole, onDeleteUser, activeTa
               <h4 className="text-lg font-semibold text-theme-primary">Activity Log</h4>
               <div className="space-y-3">
                 {[
-                  { action: 'User Created', user: 'john@example.com', role: 'user', time: '2 hours ago', icon: UserCircleIcon },
-                  { action: 'Role Updated', user: 'admin@example.com', role: 'admin', time: '1 day ago', icon: ShieldCheckIcon },
-                  { action: 'User Promoted', user: 'reporter@example.com', role: 'reporter', time: '3 days ago', icon: NewspaperIcon },
-                  { action: 'User Deleted', user: 'olduser@example.com', role: 'user', time: '1 week ago', icon: TrashIcon }
+                  { action: 'User Created', user: 'john@example.com', role: 'user', time: '2 hours ago', icon: FiUser },
+                  { action: 'Role Updated', user: 'admin@example.com', role: 'admin', time: '1 day ago', icon: FiShield },
+                  { action: 'User Promoted', user: 'reporter@example.com', role: 'reporter', time: '3 days ago', icon: FiFileText },
+                  { action: 'User Deleted', user: 'olduser@example.com', role: 'user', time: '1 week ago', icon: FiTrash2 }
                 ].map((activity, index) => {
                   const Icon = activity.icon;
                   return (
@@ -612,30 +821,30 @@ function AdminModal({ open, onClose, users, onUpdateRole, onDeleteUser, activeTa
             <div className="space-y-4">
               <h4 className="text-lg font-semibold text-gray-900">Analytics Dashboard</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-theme-beige-medium p-4 rounded-lg">
+                <div className="bg-orange-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <UserGroupIcon className="h-6 w-6 text-theme-orange" />
+                    <FiUsers className="h-6 w-6 text-orange-500" />
                     <div>
                       <div className="text-2xl font-bold text-gray-800">{users.length}</div>
                       <div className="text-sm text-gray-600">Total Users</div>
                     </div>
                   </div>
                 </div>
-                <div className="bg-theme-green-light p-4 rounded-lg">
+                <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <NewspaperIcon className="h-6 w-6 text-theme-green" />
+                    <FiFileText className="h-6 w-6 text-green-500" />
                     <div>
-                      <div className="text-2xl font-bold text-theme-green">{users.filter(u => u.role === 'reporter').length}</div>
-                      <div className="text-sm text-theme-green">Reporters</div>
+                      <div className="text-2xl font-bold text-green-600">{users.filter(u => u.role === 'reporter').length}</div>
+                      <div className="text-sm text-green-600">Reporters</div>
                     </div>
                   </div>
                 </div>
-                <div className="bg-theme-orange-light p-4 rounded-lg">
+                <div className="bg-blue-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <ShieldCheckIcon className="h-6 w-6 text-theme-orange" />
+                    <FiShield className="h-6 w-6 text-blue-600" />
                     <div>
-                      <div className="text-2xl font-bold text-white">{users.filter(u => u.role === 'admin').length}</div>
-                      <div className="text-sm text-white">Admins</div>
+                      <div className="text-2xl font-bold text-blue-600">{users.filter(u => u.role === 'admin').length}</div>
+                      <div className="text-sm text-blue-600">Admins</div>
                     </div>
                   </div>
                 </div>
@@ -692,10 +901,12 @@ export default function Dashboard() {
   const router = require('next/router').useRouter();
   
   // State management
-  const [activeTab, setActiveTab] = useState<'all' | 'admin'>('all');
+  const [activeTab, setActiveTab] = useState<string>('news');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [fireNewsEntries, setFireNewsEntries] = useState<Array<any>>([]);
   // Use static reporter tabs
-  const reporterTabs = ["Tweet", "Web"];
+  const reporterTabs = ["Tweet", "Web", "Hidden"];
   const [selectedReporter, setSelectedReporter] = useState<string>('all');
   const [users, setUsers] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
@@ -724,6 +935,7 @@ export default function Dashboard() {
   const [dateRangeStart, setDateRangeStart] = useState<Date | null>(null);
   const [dateRangeEnd, setDateRangeEnd] = useState<Date | null>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  // Note: We'll use the backend to handle filtering and counts
 
   // Remove fetchReporters and useEffect for reporters
 
@@ -767,7 +979,7 @@ export default function Dashboard() {
 
   // Fetch paginated, filtered, sorted data
   const fetchNews = React.useCallback(async () => {
-    if (activeTab !== 'all') return;
+    if (activeTab !== 'news') return;
     
     try {
       setNewsLoading(true);
@@ -777,11 +989,13 @@ export default function Dashboard() {
         page_size: pageSize,
         sort_by: sortBy,
         sort_order: sortOrder,
-        county: county || undefined,
-        state: stateFilter || undefined,
-        search: search || undefined,
       };
 
+      // Only add parameters if they have values
+      if (county) params.county = county;
+      if (stateFilter) params.state = stateFilter;
+      if (search) params.search = search;
+      
       // Add date range filters if set
       if (dateRangeStart) {
         params.start_date = dateRangeStart.toISOString().split('T')[0];
@@ -790,15 +1004,56 @@ export default function Dashboard() {
         params.end_date = dateRangeEnd.toISOString().split('T')[0];
       }
       
-      if (selectedReporter !== 'all') {
-        params.reporter_name = selectedReporter;
+      // Handle hidden filtering
+      if (selectedReporter === 'Hidden') {
+        params.is_hidden = true;
+      } else if (selectedReporter !== 'all') {
+        // Map tab names to actual reporter names
+        let reporterName = selectedReporter;
+        if (selectedReporter === 'Tweet') {
+          reporterName = 'Twitter Fire Detection Bot';
+        }
+        params.reporter_name = reporterName;
+        params.is_hidden = false; // Only show non-hidden articles in specific tabs
+      } else {
+        // For "All Leads" tab, we want to show all non-hidden articles
+        // but the count should include hidden articles
+        params.is_hidden = false;
       }
       
+      console.log('Fetching news with params:', params);
+      console.log('Selected reporter:', selectedReporter);
       const res = await api.get('/api/fire-news', { params });
-      setFireNewsEntries(res.data.items);
-      setTotal(res.data.total);
+      console.log('News response:', res.data);
+      console.log('Items received:', res.data.items.length);
+      console.log('Hidden items in response:', res.data.items.filter((item: any) => item.is_hidden).length);
+      
+      // Apply frontend filtering as fallback to ensure hidden articles don't appear in wrong tabs
+      let filteredItems = res.data.items;
+      if (selectedReporter === 'Hidden') {
+        // Only show hidden articles
+        filteredItems = res.data.items.filter((item: any) => item.is_hidden);
+        setTotal(filteredItems.length); // For Hidden tab, total = count of hidden items
+      } else {
+        // For all other tabs, exclude hidden articles
+        filteredItems = res.data.items.filter((item: any) => !item.is_hidden);
+        if (selectedReporter === 'all') {
+          // For "All Leads" tab, total should be the backend total (all articles including hidden)
+          setTotal(res.data.total);
+        } else {
+          // For specific reporter tabs, total = count of filtered items
+          setTotal(filteredItems.length);
+        }
+      }
+      
+      console.log('Filtered items:', filteredItems.length);
+      console.log('Total set to:', selectedReporter === 'all' ? res.data.total : filteredItems.length);
+      setFireNewsEntries(filteredItems);
     } catch (err) {
+      console.error('Error fetching news:', err);
       setNewsError('Failed to load fire news.');
+      setFireNewsEntries([]);
+      setTotal(0);
     } finally {
       setNewsLoading(false);
     }
@@ -827,11 +1082,7 @@ export default function Dashboard() {
   const totalPages = Math.ceil(total / pageSize);
   const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
 
-  React.useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [loading, user, router]);
+  // Removed redundant redirect effect since we handle it in the render
 
   // Delete handlers
   const openDeleteModal = (id: number) => {
@@ -950,7 +1201,25 @@ export default function Dashboard() {
     }
   };
 
-  if (loading || !user)
+  const getTabTitle = () => {
+    const titles: { [key: string]: string } = {
+      'dashboard': 'Dashboard',
+      'news': 'Fire News',
+      'alerts': 'Alerts',
+      'reports': 'Reports',
+      'analytics': 'Analytics',
+      'map': 'Map View',
+      'calendar': 'Calendar',
+      'search': 'Advanced Search',
+      'bookmarks': 'Bookmarks',
+      'favorites': 'Favorites',
+      'history': 'History',
+      'archive': 'Archive'
+    };
+    return titles[activeTab] || 'Dashboard';
+  };
+
+  if (loading)
     return (
       <div className="flex items-center justify-center min-h-screen bg-theme-background">
         <div className="text-center">
@@ -960,66 +1229,40 @@ export default function Dashboard() {
       </div>
     );
 
+  // If no user after loading, redirect to login
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
     return (
     <div className="min-h-screen w-full flex bg-theme-background overflow-hidden">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-theme-card border-r border-theme-border shadow-xl p-6 fixed top-0 left-0 h-screen z-30">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="p-2 bg-gradient-to-br from-theme-teal-medium to-theme-teal-dark rounded-lg shadow-md">
-            <FireIcon className="h-8 w-8 bg-theme-teal-dark" />
-          </div>
-          <span className="text-2xl font-extrabold text-theme-teal-dark">FireNews</span>
-        </div>
-        <nav className="flex flex-col gap-3 flex-1">
-          <button 
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 shadow-sm border-2 ${
-              activeTab === 'all' 
-                ? 'bg-theme-teal-dark text-white border-theme-teal-dark font-semibold shadow-md transform scale-105' 
-                : 'bg-theme-cool-gray-light text-theme-teal-dark border-transparent hover:bg-theme-teal-light hover:text-theme-teal-dark hover:border-theme-teal-medium hover:shadow-md'
-            }`}
-            onClick={() => setActiveTab('all')}
-          >
-            <NewspaperIcon className={`h-5 w-5 ${activeTab === 'all' ? 'text-white' : 'text-theme-teal-dark'}`} /> News Dashboard
-          </button>
-          {(user.role === 'admin' || user.role === 'ADMIN') && (
-            <button 
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 shadow-sm border-2 ${
-                activeTab === 'admin' 
-                  ? 'bg-theme-teal-dark text-white border-theme-teal-dark font-semibold shadow-md transform scale-105' 
-                  : 'bg-theme-cool-gray-light text-theme-teal-dark border-transparent hover:bg-theme-teal-light hover:text-theme-teal-dark hover:border-theme-teal-medium hover:shadow-md'
-              }`}
-              onClick={() => setAdminModalOpen(true)}
-            >
-              <ShieldCheckIcon className={`h-5 w-5 ${activeTab === 'admin' ? 'text-white' : 'text-theme-teal-dark'}`} /> Admin Panel
-            </button>
-          )}
-          <button
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-theme-danger hover:bg-theme-cool-gray-light hover:shadow-md transition-all duration-200 mt-auto"
-            onClick={logout}
-          >
-            <ArrowRightOnRectangleIcon className="h-5 w-5 text-theme-danger" /> Logout
-          </button>
-        </nav>
-      </aside>
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onAdminModalOpen={() => setAdminModalOpen(true)}
+        isMobileOpen={isMobileMenuOpen}
+        onMobileToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64 min-h-screen overflow-x-auto w-full">
-        {/* Header */}
-        <header className="w-full bg-theme-card shadow-sm px-6 py-4 flex items-center justify-between border-b border-theme-border sticky top-0 left-0 z-20">
-          <span className="text-xl font-bold text-theme-teal-dark">
-            {activeTab === 'all' ? 'News Dashboard' : 'Admin Panel'}
-          </span>
-          <div className="flex items-center gap-4">
-            <span className="text-theme-secondary font-medium">{user.email}</span>
-            <span className="px-3 py-1 bg-theme-teal-dark text-white text-xs font-semibold rounded-full shadow-sm border-2 border-theme-teal-medium">
-              {user.role}
-            </span>
-          </div>
-        </header>
+      <div className={`flex-1 flex flex-col min-h-screen overflow-x-auto w-full transition-all duration-300 ${
+        isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+      }`}>
+        {/* Top Navigation */}
+        <TopNavigation
+          activeTab={activeTab}
+          onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onAdminModalOpen={() => setAdminModalOpen(true)}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
 
-                {/* Content */}
-        <main className="flex-1 flex flex-col p-2 w-full bg-theme-background">
-          {activeTab === 'all' ? (
+        {/* Content */}
+        <main className="flex-1 flex flex-col p-4 w-full bg-theme-background pt-20">
+          {activeTab === 'news' ? (
             <div className="w-full space-y-4">
               
 
@@ -1047,23 +1290,31 @@ export default function Dashboard() {
                         : 'bg-theme-cool-gray-light text-theme-teal-dark border-transparent hover:bg-theme-teal-light hover:text-theme-teal-dark hover:border-theme-teal-medium'
                     }`}
                   >
-                    <GlobeAltIcon className={`h-5 w-5 ${selectedReporter === 'all' ? 'text-white' : 'text-theme-teal-dark'}`} />
-                    All Leads ({total})
+                    <FiGlobe className={`h-5 w-5 ${selectedReporter === 'all' ? 'text-white' : 'text-blue-600'}`} />
+                    All Leads 
                   </button>
                   {reporterTabs.map((reporter) => {
-                    const isTweet = reporter.toLowerCase().includes('tweet');
-                    const Icon = isTweet ? ChatBubbleLeftRightIcon : WebIcon;
+                    const isTweet = reporter === 'Tweet';
+                    const isHidden = reporter.toLowerCase().includes('hidden');
+                    let Icon = FiGlobe;
+                    if (isTweet) Icon = FiMessageSquare;
+                    if (isHidden) Icon = FiEyeOff;
+                    
                     return (
                       <button
                         key={reporter}
                         onClick={() => { setSelectedReporter(reporter); setPage(1); }}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors border-2 ${
                           selectedReporter === reporter
-                            ? 'bg-theme-teal-dark text-white border-theme-teal-dark shadow-md'
-                            : 'bg-theme-cool-gray-light text-theme-teal-dark border-transparent hover:bg-theme-teal-light hover:text-theme-teal-dark hover:border-theme-teal-medium'
+                            ? isHidden 
+                              ? 'bg-gray-700 text-gray-100 border-gray-700 shadow-sm'
+                              : 'bg-blue-600 text-white border-blue-600 shadow-md'
+                            : isHidden
+                              ? 'bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300'
+                              : 'bg-gray-100 text-blue-600 border-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300'
                         }`}
                       >
-                        <Icon className={`h-5 w-5 ${selectedReporter === reporter ? 'text-white' : 'text-theme-teal-dark'}`} />
+                        <Icon className={`h-5 w-5 ${selectedReporter === reporter ? 'text-white' : isHidden ? 'text-gray-600' : 'text-blue-600'}`} />
                         {reporter}
                       </button>
                     );
@@ -1076,21 +1327,15 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2">
                   {selectedIds.length > 0 && (
                     <button
-                      className="flex items-center gap-1 px-4 py-2 rounded-lg bg-theme-danger text-white shadow-md hover:bg-red-600 transition-colors"
+                      className="flex items-center gap-1 px-4 py-2 rounded-lg bg-red-500 text-white shadow-md hover:bg-red-600 transition-colors"
                       onClick={openBulkDeleteModal}
                     >
-                      <TrashIcon className="h-5 w-5" /> Delete Selected ({selectedIds.length})
+                      <FiTrash2 className="h-5 w-5" /> Delete Selected ({selectedIds.length})
                     </button>
                   )}
                 </div>
-                {/* {(user.role === 'admin' || user.role === 'ADMIN') && (
-                  <button
-                    className="flex items-center gap-1 px-4 py-2 rounded-lg bg-theme-orange text-white shadow-md hover:bg-theme-orange-light transition-colors"
-                    onClick={() => setDeleteAllModalOpen(true)}
-                  >
-                    <TrashIcon className="h-5 w-5" /> Delete All Records
-                  </button>
-                )} */}
+                
+                
               </div>
 
               {/* Data Table */}
@@ -1105,6 +1350,23 @@ export default function Dashboard() {
                 onView={openViewModal}
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
+                onToggleVerified={async (id) => {
+                  try {
+                    await api.put(`/api/fire-news/${id}/toggle-verified`);
+                    setFireNewsEntries(entries => entries.map(e => e.id === id ? { ...e, is_verified: !e.is_verified } : e));
+                  } catch (err) {
+                    alert('Failed to toggle verified status.');
+                  }
+                }}
+                onToggleHidden={async (id) => {
+                  try {
+                    await api.put(`/api/fire-news/${id}/toggle-hidden`);
+                    // Refresh the data to reflect the change in the current tab
+                    fetchNews();
+                  } catch (err) {
+                    alert('Failed to toggle hidden status.');
+                  }
+                }}
                 userRole={user.role}
               />
 
@@ -1121,9 +1383,9 @@ export default function Dashboard() {
           ) : (
             <div className="bg-theme-card rounded-2xl shadow-xl border border-theme-border p-6 w-full">
               <div className="text-center text-theme-secondary">
-                <CogIcon className="h-12 w-12 mx-auto mb-4 text-theme-disabled" />
-                <h2 className="text-xl font-semibold mb-2 text-theme-primary">Admin Panel</h2>
-                <p>Click the "Admin Panel" button in the sidebar to manage users.</p>
+                <FiSettings className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h2 className="text-xl font-semibold mb-2 text-theme-primary">{getTabTitle()}</h2>
+                <p>This section is under development. Please use the navigation to explore other features.</p>
               </div>
             </div>
           )}
@@ -1170,6 +1432,26 @@ export default function Dashboard() {
         open={viewModalOpen}
         onClose={closeViewModal}
         entry={selectedEntry}
+        onEdit={openEditModal}
+        onDelete={openDeleteModal}
+        onToggleVerified={async (id) => {
+          try {
+            await api.put(`/api/fire-news/${id}/toggle-verified`);
+            setFireNewsEntries(entries => entries.map(e => e.id === id ? { ...e, is_verified: !e.is_verified } : e));
+          } catch (err) {
+            alert('Failed to toggle verified status.');
+          }
+        }}
+        onToggleHidden={async (id) => {
+          try {
+            await api.put(`/api/fire-news/${id}/toggle-hidden`);
+            // Refresh the data to reflect the change in the current tab
+            fetchNews();
+          } catch (err) {
+            alert('Failed to toggle hidden status.');
+          }
+        }}
+        userRole={user.role}
       />
 
       <EditModal

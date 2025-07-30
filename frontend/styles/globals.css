@@ -28,6 +28,58 @@
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
   --color-link-hover: #2C7A7B;
+  
+  /* Additional Colors */
+  --color-orange: #F97316;
+  --color-orange-light: #FED7AA;
+  --color-green: #10B981;
+  --color-green-light: #D1FAE5;
+  --color-purple: #8B5CF6;
+  --color-purple-light: #DDD6FE;
+  --color-blue: #3B82F6;
+  --color-blue-light: #DBEAFE;
+  --color-pink: #EC4899;
+  --color-pink-light: #FCE7F3;
+}
+
+/* Dark Mode Theme */
+[data-theme="dark"] {
+  /* Base Theme (Dark UI) */
+  --color-background: #0F172A;
+  --color-card: #1E293B;
+  --color-border: #334155;
+  --color-hover: #1E293B;
+  
+  /* Accent Colors (Teal Tones) */
+  --color-teal-light: #0F766E;
+  --color-teal-medium: #14B8A6;
+  --color-teal-dark: #5EEAD4;
+  --color-cool-gray-light: #1E293B;
+  --color-cool-gray-medium: #334155;
+  --color-slate-dark: #94A3B8;
+  
+  /* Text Colors */
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #CBD5E1;
+  --color-text-disabled: #64748B;
+  
+  /* Semantic Colors */
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-link-hover: #5EEAD4;
+  
+  /* Additional Colors */
+  --color-orange: #FB923C;
+  --color-orange-light: #F97316;
+  --color-green: #22C55E;
+  --color-green-light: #16A34A;
+  --color-purple: #A78BFA;
+  --color-purple-light: #8B5CF6;
+  --color-blue: #60A5FA;
+  --color-blue-light: #3B82F6;
+  --color-pink: #F472B6;
+  --color-pink-light: #EC4899;
 }
 
 /* Global theme styles */
@@ -35,6 +87,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-text-primary);
   font-family: 'Inter', 'DM Sans', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom utility classes */
@@ -86,6 +139,46 @@ body {
   background-color: var(--color-danger);
 }
 
+.bg-theme-orange {
+  background-color: var(--color-orange);
+}
+
+.bg-theme-orange-light {
+  background-color: var(--color-orange-light);
+}
+
+.bg-theme-green {
+  background-color: var(--color-green);
+}
+
+.bg-theme-green-light {
+  background-color: var(--color-green-light);
+}
+
+.bg-theme-purple {
+  background-color: var(--color-purple);
+}
+
+.bg-theme-purple-light {
+  background-color: var(--color-purple-light);
+}
+
+.bg-theme-blue {
+  background-color: var(--color-blue);
+}
+
+.bg-theme-blue-light {
+  background-color: var(--color-blue-light);
+}
+
+.bg-theme-pink {
+  background-color: var(--color-pink);
+}
+
+.bg-theme-pink-light {
+  background-color: var(--color-pink-light);
+}
+
 .text-theme-primary {
   color: var(--color-text-primary);
 }
@@ -126,6 +219,26 @@ body {
   color: var(--color-danger);
 }
 
+.text-theme-orange {
+  color: var(--color-orange);
+}
+
+.text-theme-green {
+  color: var(--color-green);
+}
+
+.text-theme-purple {
+  color: var(--color-purple);
+}
+
+.text-theme-blue {
+  color: var(--color-blue);
+}
+
+.text-theme-pink {
+  color: var(--color-pink);
+}
+
 .border-theme-border {
   border-color: var(--color-border);
 }
@@ -148,4 +261,126 @@ body {
 
 .hover\:text-theme-link-hover:hover {
   color: var(--color-link-hover);
-} 
+}
+
+/* Glass morphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .glass {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Smooth transitions */
+.transition-theme {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+/* Custom animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.6s ease-out;
+}
+
+/* Hover effects for action buttons */
+.action-button-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-button-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Status badge animations */
+.status-badge {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Table row hover effects - removed to prevent flickering */ 

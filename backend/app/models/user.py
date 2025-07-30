@@ -7,6 +7,7 @@ import enum
 class UserRole(str, enum.Enum):
     USER = "user"
     REPORTER = "reporter"
+    EDITOR = "editor"
     ADMIN = "admin"
 
 class User(Base):
@@ -23,7 +24,7 @@ class User(Base):
     state = Column(String(255), nullable=True)
     country = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
-    role = Column(Enum(UserRole), default=UserRole.USER)
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x]), default=UserRole.USER)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
