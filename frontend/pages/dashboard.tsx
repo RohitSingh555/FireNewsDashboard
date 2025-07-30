@@ -49,20 +49,160 @@ function VerificationBar({ value }: { value: number }) {
 
 function DetailsModal({ open, onClose, entry }: { open: boolean; onClose: () => void; entry: any }) {
   if (!open || !entry) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl overflow-y-auto max-h-[90vh]">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-shopify-blue">Fire News Details</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-shopify-blue text-2xl font-bold">&times;</button>
+  
+  const formatValue = (key: string, value: any) => {
+    if (value === null || value === undefined || value === '') return 'N/A';
+    
+    // Format dates
+    if (key.includes('date') || key.includes('at')) {
+      try {
+        return new Date(value).toLocaleString();
+      } catch {
+        return String(value);
+      }
+    }
+    
+    // Format URLs
+    if (key === 'url' && typeof value === 'string') {
+      return (
+        <a 
+          href={value} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-shopify-blue hover:text-shopify-light-blue underline break-all"
+        >
+          {value}
+        </a>
+      );
+    }
+    
+    // Format long text
+    if (typeof value === 'string' && value.length > 100) {
+      return (
+        <div className="max-h-32 overflow-y-auto">
+          <span className="whitespace-pre-line break-words">{value}</span>
         </div>
-        <div className="space-y-2">
-          {Object.entries(entry).map(([key, value]) => (
-            <div key={key} className="flex gap-2">
-              <span className="font-semibold text-shopify-blue min-w-[120px] capitalize">{key.replace(/_/g, ' ')}:</span>
-              <span className="text-shopify-gray-blue break-all whitespace-pre-line">{String(value ?? '')}</span>
+      );
+    }
+    
+    return String(value);
+  };
+
+  const getFieldLabel = (key: string) => {
+    const labels: { [key: string]: string } = {
+      id: 'ID',
+      title: 'Title',
+      content: 'Content',
+      published_date: 'Published Date',
+      url: 'URL',
+      source: 'Source',
+      fire_related_score: 'Fire Related Score',
+      verification_result: 'Verification Result',
+      verified_at: 'Verified At',
+      state: 'State',
+      county: 'County',
+      city: 'City',
+      province: 'Province',
+      country: 'Country',
+      latitude: 'Latitude',
+      longitude: 'Longitude',
+      image_url: 'Image URL',
+      tags: 'Tags',
+      reporter_name: 'Reporter Name',
+      created_at: 'Created At',
+      updated_at: 'Updated At'
+    };
+    return labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const isImportantField = (key: string) => {
+    return ['title', 'content', 'published_date', 'source', 'state', 'county'].includes(key);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl border border-shopify-pale-blue w-full max-w-4xl max-h-[90vh] overflow-hidden mx-4">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-shopify-blue to-shopify-light-blue px-6 py-4 rounded-t-2xl">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <NewspaperIcon className="h-6 w-6 text-white" />
+              <h3 className="text-xl font-bold text-white">Fire News Details</h3>
             </div>
-          ))}
+            <button 
+              onClick={onClose} 
+              className="text-white hover:text-shopify-pale-blue text-2xl font-bold transition-colors duration-200 p-1 rounded-full hover:bg-white hover:bg-opacity-20"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Important Fields */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-shopify-blue border-b border-shopify-pale-blue pb-2">
+                Primary Information
+              </h4>
+              {Object.entries(entry)
+                .filter(([key]) => isImportantField(key))
+                .map(([key, value]) => (
+                  <div key={key} className="bg-shopify-bg rounded-lg p-4 border border-shopify-pale-blue">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-semibold text-shopify-blue uppercase tracking-wide">
+                        {getFieldLabel(key)}
+                      </span>
+                      <div className="text-shopify-gray-blue">
+                        {formatValue(key, value)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+            
+            {/* Secondary Fields */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-shopify-blue border-b border-shopify-pale-blue pb-2">
+                Additional Details
+              </h4>
+              {Object.entries(entry)
+                .filter(([key]) => !isImportantField(key))
+                .map(([key, value]) => (
+                  <div key={key} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                        {getFieldLabel(key)}
+                      </span>
+                      <div className="text-gray-800 text-sm">
+                        {formatValue(key, value)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-shopify-pale-blue">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 font-medium"
+            >
+              Close
+            </button>
+            {entry.url && (
+              <a
+                href={entry.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-6 py-2 rounded-lg bg-gradient-to-r from-shopify-blue to-shopify-light-blue text-white hover:from-shopify-light-blue hover:to-shopify-blue transition-all duration-200 font-medium shadow-md"
+              >
+                View Source
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
