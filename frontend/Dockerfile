@@ -5,4 +5,4 @@ RUN npm install
 RUN npm install @tailwindcss/postcss
 COPY . .
 EXPOSE 3000
-CMD ["npm", "start"] 
+CMD ["npm", "run", "dev"] 

@@ -19,7 +19,7 @@ class UserService:
         hashed_password = pwd_context.hash(user.password)
         db_user = User(
             email=user.email,
-            password_hash=hashed_password,
+            hashed_password=hashed_password,
             first_name=user.first_name,
             last_name=user.last_name,
             phone=user.phone,
@@ -34,7 +34,7 @@ class UserService:
 
     def authenticate_user(self, email: str, password: str):
         user = self.get_by_email(email)
-        if not user or not pwd_context.verify(password, user.password_hash):
+        if not user or not pwd_context.verify(password, user.hashed_password):
             return None
         return user
 

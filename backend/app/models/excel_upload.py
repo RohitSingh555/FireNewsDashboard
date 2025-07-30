@@ -10,7 +10,7 @@ class ExcelUpload(Base):
     external_id = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()))
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=False)
-    created = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
     from_url = Column(String(512), nullable=True)
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(String(255), nullable=True)

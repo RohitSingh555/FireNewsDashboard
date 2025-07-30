@@ -1,3 +1,151 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+/* Custom theme colors - Teal & Cool Gray Theme */
+:root {
+  /* Base Theme (Light UI) */
+  --color-background: #F9FAFB;
+  --color-card: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-hover: #F9FAFB;
+  
+  /* Accent Colors (Teal Tones) */
+  --color-teal-light: #E6FFFA;
+  --color-teal-medium: #81E6D9;
+  --color-teal-dark: #2C7A7B;
+  --color-cool-gray-light: #F9FAFB;
+  --color-cool-gray-medium: #E5E7EB;
+  --color-slate-dark: #4B5563;
+  
+  /* Text Colors */
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #4B5563;
+  --color-text-disabled: #9CA3AF;
+  
+  /* Semantic Colors */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-link-hover: #2C7A7B;
+}
+
+/* Global theme styles */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: 'Inter', 'DM Sans', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom utility classes */
+.bg-theme-background {
+  background-color: var(--color-background);
+}
+
+.bg-theme-card {
+  background-color: var(--color-card);
+}
+
+.bg-theme-hover {
+  background-color: var(--color-hover);
+}
+
+.bg-theme-teal-light {
+  background-color: var(--color-teal-light);
+}
+
+.bg-theme-teal-medium {
+  background-color: var(--color-teal-medium);
+}
+
+.bg-theme-teal-dark {
+  background-color: var(--color-teal-dark);
+}
+
+.bg-theme-cool-gray-light {
+  background-color: var(--color-cool-gray-light);
+}
+
+.bg-theme-cool-gray-medium {
+  background-color: var(--color-cool-gray-medium);
+}
+
+.bg-theme-slate-dark {
+  background-color: var(--color-slate-dark);
+}
+
+.bg-theme-success {
+  background-color: var(--color-success);
+}
+
+.bg-theme-warning {
+  background-color: var(--color-warning);
+}
+
+.bg-theme-danger {
+  background-color: var(--color-danger);
+}
+
+.text-theme-primary {
+  color: var(--color-text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-theme-disabled {
+  color: var(--color-text-disabled);
+}
+
+.text-theme-teal-light {
+  color: var(--color-teal-light);
+}
+
+.text-theme-teal-medium {
+  color: var(--color-teal-medium);
+}
+
+.text-theme-teal-dark {
+  color: var(--color-teal-dark);
+}
+
+.text-theme-slate-dark {
+  color: var(--color-slate-dark);
+}
+
+.text-theme-success {
+  color: var(--color-success);
+}
+
+.text-theme-warning {
+  color: var(--color-warning);
+}
+
+.text-theme-danger {
+  color: var(--color-danger);
+}
+
+.border-theme-border {
+  border-color: var(--color-border);
+}
+
+.hover\:bg-theme-hover:hover {
+  background-color: var(--color-hover);
+}
+
+.hover\:bg-theme-teal-light:hover {
+  background-color: var(--color-teal-light);
+}
+
+.hover\:bg-theme-teal-medium:hover {
+  background-color: var(--color-teal-medium);
+}
+
+.hover\:bg-theme-teal-dark:hover {
+  background-color: var(--color-teal-dark);
+}
+
+.hover\:text-theme-link-hover:hover {
+  color: var(--color-link-hover);
+} 

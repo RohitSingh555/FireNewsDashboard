@@ -9,6 +9,7 @@ from app.core.db import get_db
 from app.services.user_service import get_user_service
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
+from passlib.context import CryptContext
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
 
@@ -17,8 +18,15 @@ ALGORITHM = os.getenv('ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', 60))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class AuthService:
+    def get_password_hash(self, password: str):
+        return pwd_context.hash(password)
+    
+    def verify_password(self, plain_password: str, hashed_password: str):
+        return pwd_context.verify(plain_password, hashed_password)
+    
     def create_token(self, user: User):
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode = {"sub": user.email, "role": user.role, "exp": expire}
