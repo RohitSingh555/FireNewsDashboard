@@ -76,14 +76,6 @@ export default function Sidebar({
       description: 'Overview and analytics'
     },
     {
-      id: 'alerts',
-      label: 'Alerts',
-      icon: FiBell,
-      color: 'text-red-500',
-      description: 'Emergency notifications',
-      badge: '3'
-    },
-    {
       id: 'reports',
       label: 'Reports',
       icon: FiBarChart,
@@ -98,25 +90,11 @@ export default function Sidebar({
       description: 'Data insights and trends'
     },
     {
-      id: 'map',
-      label: 'Map View',
-      icon: FiMap,
-      color: 'text-indigo-500',
-      description: 'Geographic visualization'
-    },
-    {
       id: 'calendar',
       label: 'Calendar',
       icon: FiCalendar,
       color: 'text-pink-500',
       description: 'Event scheduling'
-    },
-    {
-      id: 'search',
-      label: 'Advanced Search',
-      icon: FiSearch,
-      color: 'text-gray-500',
-      description: 'Find specific information'
     },
     {
       id: 'bookmarks',
@@ -125,27 +103,6 @@ export default function Sidebar({
       color: 'text-yellow-500',
       description: 'Saved items'
     },
-    {
-      id: 'favorites',
-      label: 'Favorites',
-      icon: FiHeart,
-      color: 'text-red-400',
-      description: 'Liked content'
-    },
-    {
-      id: 'history',
-      label: 'History',
-      icon: FiClock,
-      color: 'text-gray-400',
-      description: 'Recent activity'
-    },
-    {
-      id: 'archive',
-      label: 'Archive',
-      icon: FiArchive,
-      color: 'text-gray-300',
-      description: 'Archived content'
-    }
   ];
 
   const adminItems: NavItem[] = [

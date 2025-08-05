@@ -1811,16 +1811,10 @@ export default function Dashboard() {
     const titles: { [key: string]: string } = {
       'dashboard': 'Dashboard',
       'news': 'Fire News',
-      'alerts': 'Alerts',
       'reports': 'Reports',
       'analytics': 'Analytics',
-      'map': 'Map View',
       'calendar': 'Calendar',
-      'search': 'Advanced Search',
       'bookmarks': 'Bookmarks',
-      'favorites': 'Favorites',
-      'history': 'History',
-      'archive': 'Archive'
     };
     return titles[activeTab] || 'Dashboard';
   };

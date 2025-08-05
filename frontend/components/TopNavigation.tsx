@@ -13,7 +13,8 @@ import {
   FiDownload,
   FiUpload,
   FiRotateCw,
-  FiZap
+  FiZap,
+  FiHelpCircle
 } from 'react-icons/fi';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
@@ -61,16 +62,10 @@ export default function TopNavigation({
     const titles: { [key: string]: string } = {
       'dashboard': 'Dashboard',
       'news': 'Fire News',
-      'alerts': 'Alerts',
       'reports': 'Reports',
       'analytics': 'Analytics',
-      'map': 'Map View',
       'calendar': 'Calendar',
-      'search': 'Advanced Search',
       'bookmarks': 'Bookmarks',
-      'favorites': 'Favorites',
-      'history': 'History',
-      'archive': 'Archive'
     };
     return titles[activeTab] || 'Dashboard';
   };
@@ -132,6 +127,15 @@ export default function TopNavigation({
               </button>
             ))}
           </div>
+
+          {/* Help Button */}
+          <button
+            onClick={() => window.location.href = '/documentation'}
+            className="p-2 rounded-lg hover:bg-theme-hover transition-colors"
+            title="Documentation & Help"
+          >
+            <FiHelpCircle className="h-5 w-5 text-blue-500" />
+          </button>
 
           {/* Theme Toggle */}
           <button
