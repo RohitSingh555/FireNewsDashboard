@@ -848,10 +848,9 @@ def get_all_leads(
     status: str = Query(None),
     is_verified: bool = Query(None)
 ):
-    """Get all non-hidden fire news entries (excluding 911 emergency data) with proper pagination"""
+    """Get all non-hidden fire news entries (including 911 emergency data) with proper pagination"""
     query = db.query(FireNews).filter(
-        FireNews.is_hidden == False,
-        FireNews.data_type != 'emergency_911'
+        FireNews.is_hidden == False
     )
     
     # Filtering

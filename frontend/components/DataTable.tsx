@@ -9,7 +9,12 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ShieldCheckIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  GlobeAltIcon,
+  ChatBubbleLeftRightIcon,
+  SignalIcon,
+  UserIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 
 interface DataTableProps {
@@ -81,6 +86,96 @@ function StatusBadge({ isVerified, isHidden }: { isVerified: boolean; isHidden: 
         <div className="status-badge flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-red-100 to-pink-100 text-red-700 border border-red-200 shadow-sm animate-fade-in">
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           Hidden
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Beautiful Source Badge Component with Icons
+function SourceBadge({ reporterName, source }: { reporterName: string; source?: string }) {
+  const getSourceConfig = (reporter: string) => {
+    const lowerReporter = reporter?.toLowerCase() || '';
+    
+    if (lowerReporter.includes('twitter') || lowerReporter.includes('bot')) {
+      return {
+        icon: ChatBubbleLeftRightIcon,
+        label: 'Twitter/X',
+        bgColor: 'bg-gradient-to-r from-blue-100 to-cyan-100',
+        textColor: 'text-blue-700',
+        borderColor: 'border-blue-200',
+        iconColor: 'text-blue-500'
+      };
+    }
+    
+    if (lowerReporter === '911' || lowerReporter.includes('emergency')) {
+      return {
+        icon: ExclamationTriangleIcon,
+        label: '911 Emergency',
+        bgColor: 'bg-gradient-to-r from-red-100 to-pink-100',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        iconColor: 'text-red-500'
+      };
+    }
+    
+    if (lowerReporter === 'web' || lowerReporter.includes('web')) {
+      return {
+        icon: GlobeAltIcon,
+        label: 'Web Source',
+        bgColor: 'bg-gradient-to-r from-green-100 to-emerald-100',
+        textColor: 'text-green-700',
+        borderColor: 'border-green-200',
+        iconColor: 'text-green-500'
+      };
+    }
+    
+    if (lowerReporter.includes('news') || lowerReporter.includes('media')) {
+      return {
+        icon: NewspaperIcon,
+        label: 'News Media',
+        bgColor: 'bg-gradient-to-r from-purple-100 to-indigo-100',
+        textColor: 'text-purple-700',
+        borderColor: 'border-purple-200',
+        iconColor: 'text-purple-500'
+      };
+    }
+    
+    if (lowerReporter.includes('official') || lowerReporter.includes('gov')) {
+      return {
+        icon: BuildingOfficeIcon,
+        label: 'Official',
+        bgColor: 'bg-gradient-to-r from-gray-100 to-slate-100',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-200',
+        iconColor: 'text-gray-500'
+      };
+    }
+    
+    // Default for unknown sources
+    return {
+      icon: UserIcon,
+      label: reporter || 'Unknown',
+      bgColor: 'bg-gradient-to-r from-orange-100 to-amber-100',
+      textColor: 'text-orange-700',
+      borderColor: 'border-orange-200',
+      iconColor: 'text-orange-500'
+    };
+  };
+
+  const config = getSourceConfig(reporterName);
+  const IconComponent = config.icon;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className={`source-badge flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border shadow-sm transition-all duration-200 hover:shadow-md hover:scale-105 ${config.bgColor} ${config.textColor} ${config.borderColor}`}>
+        <IconComponent className={`h-4 w-4 ${config.iconColor} transition-colors duration-200`} />
+        <span className="font-semibold">{config.label}</span>
+      </div>
+      {/* Show source information for 911 entries */}
+      {(reporterName === '911' || reporterName?.toLowerCase().includes('emergency')) && source && (
+        <div className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded border">
+          <span className="font-medium">Source:</span> {source}
         </div>
       )}
     </div>
@@ -265,6 +360,28 @@ export default function DataTable({
 
               <th 
                 className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider cursor-pointer hover:bg-theme-teal-light transition-colors"
+                onClick={() => onSort('reporter_name')}
+              >
+                <div className="flex items-center gap-2">
+                  <GlobeAltIcon className="h-4 w-4" />
+                  Source {sortBy === 'reporter_name' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  <InfoTooltip content={
+                    <div>
+                      <div className="font-semibold text-blue-400 mb-1">Data Source</div>
+                      <div className="text-gray-300 text-xs">
+                        Origin of the fire news: Twitter Bot, Web Sources, 911 Emergency, News Media, Official Sources
+                      </div>
+                    </div>
+                  }>
+                    <InformationCircleIcon 
+                      className="h-5 w-5 text-theme-secondary hover:text-theme-teal-dark transition-colors cursor-help" 
+                    />
+                  </InfoTooltip>
+                </div>
+              </th>
+
+              <th 
+                className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider cursor-pointer hover:bg-theme-teal-light transition-colors"
                 onClick={() => onSort('fire_related_score')}
                 title="Click to sort by fire-related score"
               >
@@ -357,10 +474,13 @@ export default function DataTable({
                   )}
                 </td>
                 <td className="px-4 py-3 text-theme-secondary">
-                  {entry.published_date ? new Date(entry.published_date).toLocaleDateString('en-US') : '-'}
+                  {(entry.published_date || entry.incident_date) ? new Date(entry.published_date || entry.incident_date).toLocaleDateString('en-US') : '-'}
                 </td>
                 <td className="px-4 py-3 text-theme-secondary">{entry.state || '-'}</td>
                 <td className="px-4 py-3 text-theme-secondary">{entry.county || '-'}</td>
+                <td className="px-4 py-3">
+                  <SourceBadge reporterName={entry.reporter_name} source={entry.source} />
+                </td>
                 <td className="px-4 py-3">
                   {typeof entry.fire_related_score === 'number' ? (
                     <div 
@@ -368,6 +488,19 @@ export default function DataTable({
                       title={getScoreTooltip(entry.fire_related_score)}
                     >
                       <VerificationBar value={entry.fire_related_score} />
+                    </div>
+                  ) : typeof entry.address_accuracy_score === 'number' ? (
+                    <div 
+                      className="cursor-pointer transform transition-transform duration-200 hover:scale-105"
+                      title={`Address Accuracy Score: ${(entry.address_accuracy_score * 100).toFixed(1)}%`}
+                    >
+                      <div className="w-full flex items-center gap-2">
+                        <div className="flex-1 h-3 rounded-full bg-gray-200 shadow-inner overflow-hidden">
+                          <div className="h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 shadow transition-all duration-500 ease-out" 
+                               style={{ width: `${entry.address_accuracy_score * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-semibold text-blue-600 ml-2">{(entry.address_accuracy_score * 100).toFixed(1)}%</span>
+                      </div>
                     </div>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-theme-teal-light text-theme-secondary">

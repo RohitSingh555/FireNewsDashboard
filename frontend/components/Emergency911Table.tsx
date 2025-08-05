@@ -14,7 +14,9 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ShieldCheckIcon,
-  XCircleIcon
+  XCircleIcon,
+  GlobeAltIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import api from '../lib/axios';
 
@@ -144,6 +146,44 @@ function ActionButton({
   );
 }
 
+// Beautiful Source Badge Component with Icons for 911
+function SourceBadge({ reporterName }: { reporterName: string }) {
+  const getSourceConfig = (reporter: string) => {
+    const lowerReporter = reporter?.toLowerCase() || '';
+    
+    if (lowerReporter === '911' || lowerReporter.includes('emergency')) {
+      return {
+        icon: ExclamationTriangleIcon,
+        label: '911',
+        bgColor: 'bg-gradient-to-r from-red-100 to-pink-100',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        iconColor: 'text-red-500'
+      };
+    }
+    
+    // Default for unknown sources
+    return {
+      icon: UserIcon,
+      label: reporter || 'Unknown',
+      bgColor: 'bg-gradient-to-r from-orange-100 to-amber-100',
+      textColor: 'text-orange-700',
+      borderColor: 'border-orange-200',
+      iconColor: 'text-orange-500'
+    };
+  };
+
+  const config = getSourceConfig(reporterName);
+  const IconComponent = config.icon;
+
+  return (
+    <div className={`source-badge flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border shadow-sm transition-all duration-200 hover:shadow-md hover:scale-105 ${config.bgColor} ${config.textColor} ${config.borderColor}`}>
+      <IconComponent className={`h-4 w-4 ${config.iconColor} transition-colors duration-200`} />
+      <span className="font-semibold">{config.label}</span>
+    </div>
+  );
+}
+
 // Helper function to extract state from address
 function extractStateFromAddress(address: string | null): string {
   if (!address) return '-';
@@ -256,6 +296,25 @@ export default function Emergency911Table({
               </th>
               <th 
                 className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider cursor-pointer hover:bg-theme-teal-light transition-colors"
+                onClick={() => onSort('reporter_name')}
+              >
+                <div className="flex items-center gap-2">
+                  <GlobeAltIcon className="h-4 w-4" />
+                  Source
+                  <div className="relative group">
+                    <InformationCircleIcon 
+                      className="h-4 w-4 text-theme-secondary hover:text-theme-teal-dark transition-colors cursor-help" 
+                    />
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                      <div className="font-semibold mb-1">Data Source</div>
+                      <div>Origin of the 911 emergency data</div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                    </div>
+                  </div>
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider cursor-pointer hover:bg-theme-teal-light transition-colors"
                 onClick={() => onSort('address_accuracy_score')}
               >
                 <div className="flex items-center gap-2">
@@ -326,6 +385,10 @@ export default function Emergency911Table({
                 
                 <td className="px-4 py-3 text-theme-secondary">
                   {entry.county || '-'}
+                </td>
+                
+                <td className="px-4 py-3">
+                  <SourceBadge reporterName={entry.reporter_name || '911'} />
                 </td>
                 
                 <td className="px-4 py-3">
