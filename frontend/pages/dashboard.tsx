@@ -24,17 +24,29 @@ import {
   FiEyeOff,
   FiTag,
   FiEye,
-  FiEdit
+  FiEdit,
+  FiPhone,
+  FiMapPin
 } from 'react-icons/fi';
 import { useAuth } from '../lib/auth';
 import api from '../lib/axios';
 import { useEffect, useRef, useState } from 'react';
-import FiltersAccordion from '../components/FiltersAccordion';
 import DataTable from '../components/DataTable';
+import Emergency911Table from '../components/Emergency911Table';
 import Pagination from '../components/Pagination';
 import Sidebar from '../components/Sidebar';
 import TopNavigation from '../components/TopNavigation';
 import TagSelector from '../components/TagSelector';
+import SearchFilters from '../components/SearchFilters';
+import DateFilters from '../components/DateFilters';
+import TagFilter from '../components/TagFilter';
+
+interface Tag {
+  id: number;
+  name: string;
+  category?: string;
+  color?: string;
+}
 
 // Helper function to round up fire related scores
 function roundFireScore(score: number | null | undefined): number {
@@ -203,7 +215,16 @@ function ViewModal({
               <div className="flex items-center gap-4 text-sm text-theme-secondary">
                 <span className="flex items-center gap-1">
                   <FiCalendar className="h-4 w-4" />
-                  {entry.published_date ? new Date(entry.published_date).toLocaleDateString('en-US') : 'No date'}
+                  {entry.reporter_name === '911' 
+                    ? (entry.incident_date 
+                        ? new Date(entry.incident_date).toLocaleDateString('en-US') 
+                        : entry.created_at 
+                          ? new Date(entry.created_at).toLocaleDateString('en-US')
+                          : 'No date')
+                    : (entry.published_date 
+                        ? new Date(entry.published_date).toLocaleDateString('en-US') 
+                        : 'No date')
+                  }
                 </span>
                 <span className="flex items-center gap-1">
                   <FiFileText className="h-4 w-4" />
@@ -211,8 +232,17 @@ function ViewModal({
                 </span>
                 <span className="flex items-center gap-1">
                   <FiGlobe className="h-4 w-4" />
-                  {entry.source || 'Unknown Source'}
+                  {entry.reporter_name === '911' 
+                    ? (entry.station_name || 'Unknown Station')
+                    : (entry.source || 'Unknown Source')
+                  }
                 </span>
+                {entry.reporter_name === '911' && entry.city && (
+                  <span className="flex items-center gap-1">
+                    <FiMapPin className="h-4 w-4" />
+                    {entry.city}, {entry.county || 'Unknown County'}
+                  </span>
+                )}
               </div>
             </div>
             <button onClick={onClose} className="text-theme-secondary hover:text-theme-primary text-3xl font-bold ml-4">×</button>
@@ -242,82 +272,288 @@ function ViewModal({
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Content */}
                 <div className="lg:col-span-2 space-y-6">
-                  <div className="bg-theme-background rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-theme-primary mb-3">Content</h4>
-                    <p className="text-theme-secondary leading-relaxed whitespace-pre-wrap">{entry.content}</p>
-                  </div>
-
-                  {/* Tags Section */}
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">Tags</h4>
-                    {entry.tags && entry.tags.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {entry.tags.split(',').map((tag: string, index: number) => (
-                          <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 rounded-full text-sm">
-                            {tag.trim()}
-                          </span>
-                        ))}
+                  {entry.reporter_name === '911' ? (
+                    /* 911 Emergency Data Content */
+                    <>
+                      {/* Context/Description */}
+                      <div className="bg-theme-background rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-theme-primary mb-3">Emergency Context</h4>
+                        <p className="text-theme-secondary leading-relaxed whitespace-pre-wrap">{entry.context || entry.content || 'No context available'}</p>
                       </div>
-                    ) : (
-                      <p className="text-green-700 dark:text-green-300 text-sm">No tags assigned</p>
-                    )}
-                  </div>
 
-                  {/* Verifier Feedback */}
-                  {entry.verifier_feedback && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
-                      <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Verifier Feedback</h4>
-                      <p className="text-blue-700 dark:text-blue-300 text-sm leading-relaxed whitespace-pre-wrap">
-                        {entry.verifier_feedback}
-                      </p>
-                    </div>
+                      {/* Incident Information */}
+                      <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-3">Incident Information</h4>
+                        <div className="space-y-3">
+                          {entry.incident_type && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 dark:text-red-300">Type:</span>
+                              <span className="text-sm text-red-600 dark:text-red-400">{entry.incident_type}</span>
+                            </div>
+                          )}
+                          {entry.priority_level && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 dark:text-red-300">Priority:</span>
+                              <span className="text-sm text-red-600 dark:text-red-400">{entry.priority_level}</span>
+                            </div>
+                          )}
+                          {entry.status && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 dark:text-red-300">Status:</span>
+                              <span className="text-sm text-red-600 dark:text-red-400">{entry.status}</span>
+                            </div>
+                          )}
+                          {entry.response_time && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 dark:text-red-300">Response Time:</span>
+                              <span className="text-sm text-red-600 dark:text-red-400">{entry.response_time} minutes</span>
+                            </div>
+                          )}
+                          {entry.units_dispatched && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 dark:text-red-300">Units:</span>
+                              <span className="text-sm text-red-600 dark:text-red-400">{entry.units_dispatched}</span>
+                            </div>
+                          )}
+                          {entry.incident_date && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-red-700 dark:text-red-300">Incident Date:</span>
+                              <span className="text-sm text-red-600 dark:text-red-400">
+                                {new Date(entry.incident_date).toLocaleString('en-US')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Additional Information */}
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-3">Additional Information</h4>
+                        <div className="space-y-3">
+                          {entry.notes && (
+                            <div>
+                              <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Notes:</span>
+                              <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1 whitespace-pre-wrap">{entry.notes}</p>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Created:</span>
+                            <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                              {entry.created_at ? new Date(entry.created_at).toLocaleString('en-US') : 'Unknown'}
+                            </span>
+                          </div>
+                          {entry.updated_at && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Last Updated:</span>
+                              <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                                {new Date(entry.updated_at).toLocaleString('en-US')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tags Section */}
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">Tags</h4>
+                        {entry.tags && entry.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {entry.tags.split(',').map((tag: string, index: number) => (
+                              <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 rounded-full text-sm">
+                                {tag.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-green-700 dark:text-green-300 text-sm">No tags assigned</p>
+                        )}
+                      </div>
+
+                      {/* Verifier Feedback */}
+                      {entry.verifier_feedback && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
+                          <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Verifier Feedback</h4>
+                          <p className="text-blue-700 dark:text-blue-300 text-sm leading-relaxed whitespace-pre-wrap">
+                            {entry.verifier_feedback}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Fire News Data Content */
+                    <>
+                      <div className="bg-theme-background rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-theme-primary mb-3">Content</h4>
+                        <p className="text-theme-secondary leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+                      </div>
+
+                      {/* Tags Section */}
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">Tags</h4>
+                        {entry.tags && entry.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {entry.tags.split(',').map((tag: string, index: number) => (
+                              <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100 rounded-full text-sm">
+                                {tag.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-green-700 dark:text-green-300 text-sm">No tags assigned</p>
+                        )}
+                      </div>
+
+                      {/* Verifier Feedback */}
+                      {entry.verifier_feedback && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
+                          <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Verifier Feedback</h4>
+                          <p className="text-blue-700 dark:text-blue-300 text-sm leading-relaxed whitespace-pre-wrap">
+                            {entry.verifier_feedback}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Sidebar */}
                 <div className="space-y-6">
-                  {/* Fire Score */}
-                  <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-3">Fire Related Score</h4>
-                    {typeof entry.fire_related_score === 'number' ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">{roundFireScore(entry.fire_related_score)}/10</span>
-                          <FiZap className="h-8 w-8 text-orange-600 dark:text-orange-400" />
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-                          <div 
-                            className="bg-gradient-to-r from-orange-400 to-red-500 h-3 rounded-full transition-all duration-300"
-                            style={{ width: `${(roundFireScore(entry.fire_related_score) / 10) * 100}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-sm text-orange-700 dark:text-orange-300">
-                          {roundFireScore(entry.fire_related_score) >= 8 ? 'High Priority' : 
-                           roundFireScore(entry.fire_related_score) >= 6 ? 'Medium Priority' : 'Low Priority'}
-                        </p>
+                  {/* Score Section - Different for 911 vs Fire News */}
+                  {entry.reporter_name === '911' ? (
+                    /* 911 Emergency Data */
+                    <>
+                      {/* Address Accuracy Score */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Address Accuracy Score</h4>
+                        {typeof entry.address_accuracy_score === 'number' ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{(entry.address_accuracy_score * 100).toFixed(1)}%</span>
+                              <FiShield className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                              <div 
+                                className="bg-gradient-to-r from-blue-400 to-indigo-500 h-3 rounded-full transition-all duration-300"
+                                style={{ width: `${entry.address_accuracy_score * 100}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                              {entry.address_accuracy_score >= 0.8 ? 'High Accuracy' : 
+                               entry.address_accuracy_score >= 0.6 ? 'Medium Accuracy' : 'Low Accuracy'}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                            <FiAlertTriangle className="h-6 w-6" />
+                            <span>Score not available</span>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-                        <FiAlertTriangle className="h-6 w-6" />
-                        <span>Score not available</span>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Location */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Location</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">State:</span>
-                        <span className="text-sm text-blue-600 dark:text-blue-400">{entry.state || 'Unknown'}</span>
+
+
+                      {/* Station Information */}
+                      <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-3">Station Information</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-red-700 dark:text-red-300">Station:</span>
+                            <span className="text-sm text-red-600 dark:text-red-400">{entry.station_name || 'Unknown'}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">County:</span>
-                        <span className="text-sm text-blue-600 dark:text-blue-400">{entry.county || 'Unknown'}</span>
+
+                      {/* Location Information */}
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Location Information</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">City:</span>
+                            <span className="text-sm text-blue-600 dark:text-blue-400">{entry.city || 'Unknown'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">County:</span>
+                            <span className="text-sm text-blue-600 dark:text-blue-400">{entry.county || 'Unknown'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">State:</span>
+                            <span className="text-sm text-blue-600 dark:text-blue-400">{entry.state || 'Unknown'}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+
+                      {/* Address Information */}
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3">Address Information</h4>
+                        <div className="space-y-3">
+                          <div>
+                            <span className="text-sm font-medium text-green-700 dark:text-green-300">Address:</span>
+                            <p className="text-sm text-green-600 dark:text-green-400 mt-1">{entry.address || 'Unknown'}</p>
+                          </div>
+                          {entry.verified_address && (
+                            <div>
+                              <span className="text-sm font-medium text-green-700 dark:text-green-300">Verified Address:</span>
+                              <p className="text-sm text-green-600 dark:text-green-400 mt-1">{entry.verified_address}</p>
+                            </div>
+                          )}
+                          {entry.latitude && entry.longitude && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-green-700 dark:text-green-300">Coordinates:</span>
+                              <span className="text-sm text-green-600 dark:text-green-400">
+                                {entry.latitude.toFixed(4)}, {entry.longitude.toFixed(4)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* Fire News Data */
+                    <>
+                      {/* Fire Score */}
+                      <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-3">Fire Related Score</h4>
+                        {typeof entry.fire_related_score === 'number' ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">{roundFireScore(entry.fire_related_score)}/10</span>
+                              <FiZap className="h-8 w-8 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                              <div 
+                                className="bg-gradient-to-r from-orange-400 to-red-500 h-3 rounded-full transition-all duration-300"
+                                style={{ width: `${(roundFireScore(entry.fire_related_score) / 10) * 100}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-sm text-orange-700 dark:text-orange-300">
+                              {roundFireScore(entry.fire_related_score) >= 8 ? 'High Priority' : 
+                               roundFireScore(entry.fire_related_score) >= 6 ? 'Medium Priority' : 'Low Priority'}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                            <FiAlertTriangle className="h-6 w-6" />
+                            <span>Score not available</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Location */}
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
+                        <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3">Location</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">State:</span>
+                            <span className="text-sm text-blue-600 dark:text-blue-400">{entry.state || 'Unknown'}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">County:</span>
+                            <span className="text-sm text-blue-600 dark:text-blue-400">{entry.county || 'Unknown'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {/* Status */}
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
@@ -1071,6 +1307,155 @@ function VerificationBar({ value }: { value: number }) {
   );
 }
 
+// Inline Filters Component
+function InlineFilters({
+  searchInput,
+  onSearchChange,
+  stateFilter,
+  onStateChange,
+  county,
+  onCountyChange,
+  states,
+  counties,
+  onDateRangeChange,
+  selectedTags,
+  onTagsChange,
+  verificationFilter,
+  onVerificationChange,
+  className = ''
+}: {
+  searchInput: string;
+  onSearchChange: (value: string) => void;
+  stateFilter: string;
+  onStateChange: (value: string) => void;
+  county: string;
+  onCountyChange: (value: string) => void;
+  states: string[];
+  counties: string[];
+  onDateRangeChange: (startDate: Date | null, endDate: Date | null) => void;
+  selectedTags: Tag[];
+  onTagsChange: (tags: Tag[]) => void;
+  verificationFilter: boolean | null;
+  onVerificationChange: (verified: boolean | null) => void;
+  className?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className={`bg-theme-card rounded-xl shadow-sm border border-theme-border overflow-hidden ${className}`}>
+      {/* Accordion Header */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-theme-teal-light to-theme-card hover:from-theme-card to-theme-teal-light transition-all duration-200"
+      >
+        <div className="flex items-center gap-3">
+          <svg className="h-5 w-5 text-theme-teal-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+          </svg>
+          <span className="text-lg font-semibold text-theme-primary">Filters & Search</span>
+          <span className="text-sm text-white bg-theme-teal-dark px-2 py-1 rounded-full">
+            {searchInput || stateFilter || county ? 'Active' : 'All'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {isOpen ? (
+            <svg className="h-5 w-5 text-theme-slate transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          ) : (
+            <svg className="h-5 w-5 text-theme-slate transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </div>
+      </button>
+
+      {/* Accordion Content */}
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+        isOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'
+      }`}>
+        <div className="p-6 space-y-6">
+          {/* Search & Location Filters */}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="xl:col-span-3">
+              <SearchFilters
+                searchInput={searchInput}
+                onSearchChange={onSearchChange}
+                stateFilter={stateFilter}
+                onStateChange={onStateChange}
+                county={county}
+                onCountyChange={onCountyChange}
+                states={states}
+                counties={counties}
+              />
+            </div>
+
+            {/* Date Filters */}
+            <div>
+              <DateFilters
+                onDateRangeChange={onDateRangeChange}
+              />
+            </div>
+          </div>
+
+          {/* Verification Filter and Tag Filters in same row */}
+          <div className="border-t border-theme-border pt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Verification Filter */}
+              <div>
+                <h3 className="text-sm font-medium text-theme-secondary mb-3">Verification Status</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onVerificationChange(null)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      verificationFilter === null
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => onVerificationChange(true)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      verificationFilter === true
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Verified
+                  </button>
+                  <button
+                    onClick={() => onVerificationChange(false)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      verificationFilter === false
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Unverified
+                  </button>
+                </div>
+              </div>
+
+              {/* Tag Filters */}
+              <div className="relative">
+                <h3 className="text-sm font-medium text-theme-secondary mb-3">Filter by Tags</h3>
+                <div className="relative z-10">
+                  <TagFilter
+                    selectedTags={selectedTags}
+                    onTagsChange={onTagsChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, loading, logout } = useAuth();
   const router = require('next/router').useRouter();
@@ -1081,10 +1466,20 @@ export default function Dashboard() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [fireNewsEntries, setFireNewsEntries] = useState<Array<any>>([]);
   // Use static reporter tabs (excluding Others which will be added conditionally)
-  const baseReporterTabs = ["Tweet", "Web", "Hidden"];
+  const baseReporterTabs = ["Tweet", "Web", "Hidden", "911"];
   const [othersCount, setOthersCount] = useState<number>(0);
   const [reporterTabs, setReporterTabs] = useState<string[]>(baseReporterTabs);
-  const [selectedReporter, setSelectedReporter] = useState<string>('all');
+  const [selectedReporter, setSelectedReporter] = useState<string>(() => {
+    // Get tab from URL parameter on initial load
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab && ['all', '911', 'Tweet', 'Web', 'Hidden', 'Others'].includes(tab)) {
+        return tab;
+      }
+    }
+    return 'all';
+  });
   // Users state removed - now handled in separate admin page
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState('');
@@ -1111,6 +1506,16 @@ export default function Dashboard() {
   const [dateRangeStart, setDateRangeStart] = useState<Date | null>(null);
   const [dateRangeEnd, setDateRangeEnd] = useState<Date | null>(null);
   const [selectedTags, setSelectedTags] = useState<any[]>([]);
+  const [verificationFilter, setVerificationFilter] = useState<boolean | null>(() => {
+    // Get verification filter from URL parameter on initial load
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const verified = urlParams.get('verified');
+      if (verified === 'true') return true;
+      if (verified === 'false') return false;
+    }
+    return null;
+  });
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   // Note: We'll use the backend to handle filtering and counts
 
@@ -1156,10 +1561,25 @@ export default function Dashboard() {
     refreshOthersCount();
   }, []); // Only run once on mount
 
+  // Function to update URL with current tab
+  const updateTabInURL = (tab: string) => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  // Update URL when selectedReporter changes
+  useEffect(() => {
+    updateTabInURL(selectedReporter);
+  }, [selectedReporter]);
+
   // Handle case where Others tab is selected but has no results
   useEffect(() => {
     if (selectedReporter === 'Others' && othersCount === 0) {
       setSelectedReporter('all');
+      updateTabInURL('all');
     }
   }, [selectedReporter, othersCount]);
 
@@ -1191,6 +1611,7 @@ export default function Dashboard() {
       if (county) params.county = county;
       if (stateFilter) params.state = stateFilter;
       if (search) params.search = search;
+      if (verificationFilter !== null) params.is_verified = verificationFilter;
       
       // Add date range filters if set
       if (dateRangeStart) {
@@ -1212,10 +1633,17 @@ export default function Dashboard() {
         endpoint = '/api/fire-news/hidden';
       } else if (selectedReporter === 'Others') {
         endpoint = '/api/fire-news/others';
+      } else if (selectedReporter === '911') {
+        endpoint = '/api/fire-news/911';
+        // For 911 data, use incident_date as default sort
+        if (sortBy === 'published_date') {
+          params.sort_by = 'incident_date';
+        }
       }
       
       console.log('Fetching news with endpoint:', endpoint);
       console.log('Selected reporter:', selectedReporter);
+      console.log('Verification filter:', verificationFilter);
       console.log('Params:', params);
       
       const res = await api.get(endpoint, { params });
@@ -1235,7 +1663,7 @@ export default function Dashboard() {
     } finally {
       setNewsLoading(false);
     }
-  }, [page, pageSize, sortBy, sortOrder, county, stateFilter, search, selectedReporter, activeTab, dateRangeStart, dateRangeEnd]);
+  }, [page, pageSize, sortBy, sortOrder, county, stateFilter, search, selectedReporter, activeTab, dateRangeStart, dateRangeEnd, verificationFilter]);
 
   useEffect(() => { fetchNews(); }, [fetchNews]);
 
@@ -1254,6 +1682,23 @@ export default function Dashboard() {
     setDateRangeStart(startDate);
     setDateRangeEnd(endDate);
     setPage(1);
+  };
+
+  const handleVerificationChange = (verified: boolean | null) => {
+    console.log('Verification filter changed to:', verified);
+    setVerificationFilter(verified);
+    setPage(1);
+    
+    // Update URL with verification filter
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (verified === null) {
+        url.searchParams.delete('verified');
+      } else {
+        url.searchParams.set('verified', verified.toString());
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
   };
 
   // Pagination controls
@@ -1443,8 +1888,8 @@ export default function Dashboard() {
             <div className="w-full space-y-4">
               
 
-              {/* Filters Accordion */}
-              <FiltersAccordion
+              {/* Inline Filters */}
+              <InlineFilters
                 searchInput={searchInput}
                 onSearchChange={setSearchInput}
                 stateFilter={stateFilter}
@@ -1456,13 +1901,17 @@ export default function Dashboard() {
                 onDateRangeChange={handleDateRangeChange}
                 selectedTags={selectedTags}
                 onTagsChange={(tags) => { setSelectedTags(tags); setPage(1); }}
+                verificationFilter={verificationFilter}
+                onVerificationChange={handleVerificationChange}
               />
+
+
 
               {/* Reporter Tabs */}
               <div className="bg-theme-card rounded-xl shadow-sm border border-theme-border p-4">
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => { setSelectedReporter('all'); setPage(1); }}
+                    onClick={() => { setSelectedReporter('all'); setPage(1); updateTabInURL('all'); }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors border-2 ${
                       selectedReporter === 'all'
                         ? 'bg-theme-teal-dark text-white border-theme-teal-dark shadow-md'
@@ -1472,40 +1921,62 @@ export default function Dashboard() {
                     <FiGlobe className={`h-5 w-5 ${selectedReporter === 'all' ? 'text-white' : 'text-blue-600'}`} />
                     All Leads 
                   </button>
-                  {reporterTabs.map((reporter) => {
+                  
+                  {/* 911 Tab - positioned right after All Leads */}
+                  <button
+                    onClick={() => { setSelectedReporter('911'); setPage(1); updateTabInURL('911'); }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors border-2 ${
+                      selectedReporter === '911'
+                        ? 'bg-red-600 text-white border-red-600 shadow-md'
+                        : 'bg-red-50 text-red-600 border-transparent hover:bg-red-100 hover:text-red-600 hover:border-red-300'
+                    }`}
+                  >
+                    <FiPhone className={`h-5 w-5 ${selectedReporter === '911' ? 'text-white' : 'text-red-600'}`} />
+                    911
+                  </button>
+                  
+                  {reporterTabs.filter(reporter => reporter !== '911').map((reporter) => {
                     const isTweet = reporter === 'Tweet';
                     const isHidden = reporter.toLowerCase().includes('hidden');
                     const isOthers = reporter === 'Others';
+                    const is911 = reporter === '911';
                     let Icon = FiGlobe;
                     if (isTweet) Icon = FiMessageSquare;
                     if (isHidden) Icon = FiEyeOff;
                     if (isOthers) Icon = FiUser;
+                    if (is911) Icon = FiPhone;
                     
                     return (
                       <button
                         key={reporter}
-                        onClick={() => { setSelectedReporter(reporter); setPage(1); }}
+                        onClick={() => { setSelectedReporter(reporter); setPage(1); updateTabInURL(reporter); }}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors border-2 ${
                           selectedReporter === reporter
                             ? isHidden 
                               ? 'bg-gray-700 text-gray-100 border-gray-700 shadow-sm'
                               : isOthers
                                 ? 'bg-purple-600 text-white border-purple-600 shadow-md'
-                                : 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                : is911
+                                  ? 'bg-red-600 text-white border-red-600 shadow-md'
+                                  : 'bg-blue-600 text-white border-blue-600 shadow-md'
                             : isHidden
                               ? 'bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300'
                               : isOthers
                                 ? 'bg-purple-50 text-purple-600 border-transparent hover:bg-purple-100 hover:text-purple-600 hover:border-purple-300'
-                                : 'bg-gray-100 text-blue-600 border-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300'
+                                : is911
+                                  ? 'bg-red-50 text-red-600 border-transparent hover:bg-red-100 hover:text-red-600 hover:border-red-300'
+                                  : 'bg-gray-100 text-blue-600 border-transparent hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300'
                         }`}
                       >
-                        <Icon className={`h-5 w-5 ${selectedReporter === reporter ? 'text-white' : isHidden ? 'text-gray-600' : isOthers ? 'text-purple-600' : 'text-blue-600'}`} />
+                        <Icon className={`h-5 w-5 ${selectedReporter === reporter ? 'text-white' : isHidden ? 'text-gray-600' : isOthers ? 'text-purple-600' : is911 ? 'text-red-600' : 'text-blue-600'}`} />
                         {reporter}
                       </button>
                     );
                   })}
                 </div>
               </div>
+
+
 
               {/* Action Buttons */}
               <div className="flex items-center justify-between">
@@ -1524,36 +1995,69 @@ export default function Dashboard() {
               </div>
 
               {/* Data Table */}
-              <DataTable
-                data={fireNewsEntries}
-                selectedIds={selectedIds}
-                onSelectAll={(checked) => setSelectedIds(checked ? fireNewsEntries.map((n: any) => n.id) : [])}
-                onSelectItem={(id, checked) => setSelectedIds(checked ? [...selectedIds, id] : selectedIds.filter(selectedId => selectedId !== id))}
-                onSort={handleSort}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onView={openViewModal}
-                onEdit={openEditModal}
-                onDelete={openDeleteModal}
-                onToggleVerified={async (id) => {
-                  try {
-                    await api.put(`/api/fire-news/${id}/toggle-verified`);
-                    setFireNewsEntries(entries => entries.map(e => e.id === id ? { ...e, is_verified: !e.is_verified } : e));
-                  } catch (err) {
-                    alert('Failed to toggle verified status.');
-                  }
-                }}
-                onToggleHidden={async (id) => {
-                  try {
-                    await api.put(`/api/fire-news/${id}/toggle-hidden`);
-                    // Refresh the data to reflect the change in the current tab
-                    fetchNews();
-                  } catch (err) {
-                    alert('Failed to toggle hidden status.');
-                  }
-                }}
-                userRole={user.role}
-              />
+              {selectedReporter === '911' ? (
+                <Emergency911Table
+                  data={fireNewsEntries}
+                  selectedIds={selectedIds}
+                  onSelectAll={(checked) => setSelectedIds(checked ? fireNewsEntries.map((n: any) => n.id) : [])}
+                  onSelectItem={(id, checked) => setSelectedIds(checked ? [...selectedIds, id] : selectedIds.filter(selectedId => selectedId !== id))}
+                  onSort={handleSort}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onView={openViewModal}
+                  onEdit={openEditModal}
+                  onDelete={openDeleteModal}
+                  onToggleVerified={async (id) => {
+                    try {
+                      await api.put(`/api/fire-news/${id}/toggle-verified`);
+                      setFireNewsEntries(entries => entries.map(e => e.id === id ? { ...e, is_verified: !e.is_verified } : e));
+                    } catch (err) {
+                      alert('Failed to toggle verified status.');
+                    }
+                  }}
+                  onToggleHidden={async (id) => {
+                    try {
+                      await api.put(`/api/fire-news/${id}/toggle-hidden`);
+                      // Refresh the data to reflect the change in the current tab
+                      fetchNews();
+                    } catch (err) {
+                      alert('Failed to toggle hidden status.');
+                    }
+                  }}
+                  userRole={user.role}
+                />
+              ) : (
+                <DataTable
+                  data={fireNewsEntries}
+                  selectedIds={selectedIds}
+                  onSelectAll={(checked) => setSelectedIds(checked ? fireNewsEntries.map((n: any) => n.id) : [])}
+                  onSelectItem={(id, checked) => setSelectedIds(checked ? [...selectedIds, id] : selectedIds.filter(selectedId => selectedId !== id))}
+                  onSort={handleSort}
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  onView={openViewModal}
+                  onEdit={openEditModal}
+                  onDelete={openDeleteModal}
+                  onToggleVerified={async (id) => {
+                    try {
+                      await api.put(`/api/fire-news/${id}/toggle-verified`);
+                      setFireNewsEntries(entries => entries.map(e => e.id === id ? { ...e, is_verified: !e.is_verified } : e));
+                    } catch (err) {
+                      alert('Failed to toggle verified status.');
+                    }
+                  }}
+                  onToggleHidden={async (id) => {
+                    try {
+                      await api.put(`/api/fire-news/${id}/toggle-hidden`);
+                      // Refresh the data to reflect the change in the current tab
+                      fetchNews();
+                    } catch (err) {
+                      alert('Failed to toggle hidden status.');
+                    }
+                  }}
+                  userRole={user.role}
+                />
+              )}
 
               {/* Pagination */}
               <Pagination

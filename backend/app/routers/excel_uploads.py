@@ -42,9 +42,34 @@ class FireNewsItem(BaseModel):
     tags: str | None = None
     reporter_name: str | None = None
     verifier_feedback: str | None = None
+    data_type: str = "fire_news"
+
+class Emergency911Item(BaseModel):
+    title: str
+    incident_date: str | None = None
+    station_name: str | None = None
+    city: str | None = None
+    county: str | None = None
+    address: str | None = None
+    context: str | None = None
+    verified_address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    address_accuracy_score: float | None = None
+    reporter_name: str | None = None
+    incident_type: str | None = None
+    priority_level: str | None = None
+    response_time: int | None = None
+    units_dispatched: str | None = None
+    status: str | None = None
+    notes: str | None = None
+    data_type: str = "emergency_911"
 
 class FireNewsBulkUpload(BaseModel):
     items: List[FireNewsItem]
+
+class Emergency911BulkUpload(BaseModel):
+    items: List[Emergency911Item]
 
 def parse_datetime(dt_str):
     """Parse datetime string to datetime object with comprehensive format support"""
@@ -226,14 +251,25 @@ def process_excel_upload(
         else:
             df = pd.read_excel(io.BytesIO(content))
         
-        # Validate required columns
-        required_columns = ['title', 'content']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Missing required columns: {', '.join(missing_columns)}"
-            )
+        # Handle different column requirements based on reporter name
+        if reporter_name == "911":
+            # For 911 emergency data, use different column validation
+            required_columns = ['Date', 'Station Name', 'City', 'County', 'Address', 'Context']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Missing required columns for 911 data: {', '.join(missing_columns)}"
+                )
+        else:
+            # For regular fire news data
+            required_columns = ['title', 'content']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Missing required columns: {', '.join(missing_columns)}"
+                )
         
         # Convert DataFrame to list of dictionaries
         items = []
@@ -242,61 +278,104 @@ def process_excel_upload(
         
         for index, row in df.iterrows():
             try:
-                # Create FireNewsItem with reporter_name from form
-                item = FireNewsItem(
-                    title=str(row.get('title', '')).strip(),
-                    content=str(row.get('content', '')).strip(),
-                    published_date=str(row.get('published_date', '')) if pd.notna(row.get('published_date')) else None,
-                    url=str(row.get('url', '')) if pd.notna(row.get('url')) else None,
-                    source=str(row.get('source', '')) if pd.notna(row.get('source')) else None,
-                    fire_related_score=float(row.get('fire_related_score', 0.8)) if pd.notna(row.get('fire_related_score')) else 0.8,
-                    verification_result=str(row.get('verification_result', 'yes')) if pd.notna(row.get('verification_result')) else 'yes',
-                    verified_at=str(row.get('verified_at', '')) if pd.notna(row.get('verified_at')) else None,
-                    state=str(row.get('state', '')) if pd.notna(row.get('state')) else None,
-                    county=str(row.get('county', '')) if pd.notna(row.get('county')) else None,
-                    city=str(row.get('city', '')) if pd.notna(row.get('city')) else None,
-                    province=str(row.get('province', '')) if pd.notna(row.get('province')) else None,
-                    country=str(row.get('country', 'USA')) if pd.notna(row.get('country')) else 'USA',
-                    latitude=float(row.get('latitude')) if pd.notna(row.get('latitude')) else None,
-                    longitude=float(row.get('longitude')) if pd.notna(row.get('longitude')) else None,
-                    image_url=str(row.get('image_url', '')) if pd.notna(row.get('image_url')) else None,
-                    tags=str(row.get('tags', '')) if pd.notna(row.get('tags')) else None,
-                    reporter_name=reporter_name,  # Use the reporter name from form
-                    verifier_feedback=str(row.get('verifier_feedback', '')) if pd.notna(row.get('verifier_feedback')) else None
-                )
-                
-                # Check for duplicate
-                published_date = parse_datetime(item.published_date)
-                exists = db.query(FireNews).filter(
-                    FireNews.title == item.title,
-                    FireNews.published_date == published_date
-                ).first()
-                
-                if exists:
-                    skipped += 1
-                    continue  # Skip duplicate
-                
-                # Create FireNews record
-                fire_news = FireNews(
-                    title=item.title,
-                    content=item.content,
-                    published_date=published_date,
-                    url=item.url,
-                    source=item.source,
-                    fire_related_score=item.fire_related_score,
-                    verification_result=item.verification_result,
-                    verified_at=parse_datetime(item.verified_at),
-                    state=item.state,
-                    county=item.county,
-                    city=item.city,
-                    province=item.province,
-                    country=item.country,
-                    latitude=item.latitude,
-                    longitude=item.longitude,
-                    image_url=item.image_url,
-                    tags=item.tags,
-                    reporter_name=item.reporter_name,
-                )
+                if reporter_name == "911":
+                    # Process 911 emergency data
+                    # Create title from station name and date
+                    station_name = str(row.get('Station Name', '')).strip()
+                    date_str = str(row.get('Date', '')).strip()
+                    title = f"911 Emergency - {station_name} - {date_str}"
+                    
+                    # Create content from context
+                    context = str(row.get('Context', '')).strip()
+                    content = context if context else f"Emergency call from {station_name}"
+                    
+                    # Check for duplicate based on station name and date
+                    incident_date = parse_datetime(date_str)
+                    exists = db.query(FireNews).filter(
+                        FireNews.station_name == station_name,
+                        FireNews.incident_date == incident_date,
+                        FireNews.data_type == 'emergency_911'
+                    ).first()
+                    
+                    if exists:
+                        skipped += 1
+                        continue  # Skip duplicate
+                    
+                    # Create FireNews record for 911 emergency data
+                    fire_news = FireNews(
+                        title=title,
+                        content=content,
+                        incident_date=incident_date,
+                        station_name=station_name,
+                        city=str(row.get('City', '')) if pd.notna(row.get('City')) else None,
+                        county=str(row.get('County', '')) if pd.notna(row.get('County')) else None,
+                        address=str(row.get('Address', '')) if pd.notna(row.get('Address')) else None,
+                        context=context,
+                        verified_address=str(row.get('Verified Address', '')) if pd.notna(row.get('Verified Address')) else None,
+                        latitude=float(row.get('Lat', 0)) if pd.notna(row.get('Lat')) else None,
+                        longitude=float(row.get('Long', 0)) if pd.notna(row.get('Long')) else None,
+                        address_accuracy_score=float(row.get('Address Accuracy Score', 0)) if pd.notna(row.get('Address Accuracy Score')) else None,
+                        reporter_name=reporter_name,
+                        data_type='emergency_911'
+                    )
+                else:
+                    # Process regular fire news data
+                    # Create FireNewsItem with reporter_name from form
+                    item = FireNewsItem(
+                        title=str(row.get('title', '')).strip(),
+                        content=str(row.get('content', '')).strip(),
+                        published_date=str(row.get('published_date', '')) if pd.notna(row.get('published_date')) else None,
+                        url=str(row.get('url', '')) if pd.notna(row.get('url')) else None,
+                        source=str(row.get('source', '')) if pd.notna(row.get('source')) else None,
+                        fire_related_score=float(row.get('fire_related_score', 0.8)) if pd.notna(row.get('fire_related_score')) else 0.8,
+                        verification_result=str(row.get('verification_result', 'yes')) if pd.notna(row.get('verification_result')) else 'yes',
+                        verified_at=str(row.get('verified_at', '')) if pd.notna(row.get('verified_at')) else None,
+                        state=str(row.get('state', '')) if pd.notna(row.get('state')) else None,
+                        county=str(row.get('county', '')) if pd.notna(row.get('county')) else None,
+                        city=str(row.get('city', '')) if pd.notna(row.get('city')) else None,
+                        province=str(row.get('province', '')) if pd.notna(row.get('province')) else None,
+                        country=str(row.get('country', 'USA')) if pd.notna(row.get('country')) else 'USA',
+                        latitude=float(row.get('latitude')) if pd.notna(row.get('latitude')) else None,
+                        longitude=float(row.get('longitude')) if pd.notna(row.get('longitude')) else None,
+                        image_url=str(row.get('image_url', '')) if pd.notna(row.get('image_url')) else None,
+                        tags=str(row.get('tags', '')) if pd.notna(row.get('tags')) else None,
+                        reporter_name=reporter_name,  # Use the reporter name from form
+                        verifier_feedback=str(row.get('verifier_feedback', '')) if pd.notna(row.get('verifier_feedback')) else None
+                    )
+                    
+                    # Check for duplicate
+                    published_date = parse_datetime(item.published_date)
+                    exists = db.query(FireNews).filter(
+                        FireNews.title == item.title,
+                        FireNews.published_date == published_date
+                    ).first()
+                    
+                    if exists:
+                        skipped += 1
+                        continue  # Skip duplicate
+                    
+                    # Create FireNews record for regular fire news
+                    fire_news = FireNews(
+                        title=item.title,
+                        content=item.content,
+                        published_date=published_date,
+                        url=item.url,
+                        source=item.source,
+                        fire_related_score=item.fire_related_score,
+                        verification_result=item.verification_result,
+                        verified_at=parse_datetime(item.verified_at),
+                        state=item.state,
+                        county=item.county,
+                        city=item.city,
+                        province=item.province,
+                        country=item.country,
+                        latitude=item.latitude,
+                        longitude=item.longitude,
+                        image_url=item.image_url,
+                        tags=item.tags,
+                        reporter_name=item.reporter_name,
+                        data_type='fire_news'
+                    )
                 
                 db.add(fire_news)
                 inserted += 1
@@ -346,8 +425,26 @@ def get_fire_news(
     reporter_name: str = Query(None),
     start_date: str = Query(None),
     end_date: str = Query(None),
-    is_hidden: bool = Query(None)
+    is_hidden: bool = Query(None),
+    status: str = Query(None),
+    is_verified: bool = Query(None)
 ):
+    # If reporter_name is "911", redirect to the 911 emergency endpoint
+    if reporter_name == "911":
+        return get_911_emergency_data(
+            db=db,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            county=county,
+            state=state,
+            search=search,
+            start_date=start_date,
+            end_date=end_date,
+            is_hidden=is_hidden
+        )
+    
     query = db.query(FireNews)
     # Filtering
     if county:
@@ -358,6 +455,10 @@ def get_fire_news(
         query = query.filter(FireNews.reporter_name == reporter_name)
     if is_hidden is not None:
         query = query.filter(FireNews.is_hidden == is_hidden)
+    if status:
+        query = query.filter(FireNews.status == status)
+    if is_verified is not None:
+        query = query.filter(FireNews.is_verified == is_verified)
     
     # Date filtering
     if start_date:
@@ -716,8 +817,8 @@ def test_upload_fire_news(
         activity_log_service.create_activity_log(
             action_type=ActivityType.NEWS_UPLOADED,
             description=f"Test upload: {data.title}",
-            user_id=current_user.id,
-            details=f"Test upload by {current_user.email}: {data.title}",
+            user_id=None,  # No user authentication required for test upload
+            details=f"Test upload: {data.title}",
             ip_address=ip_address,
             user_agent=user_agent
         )
@@ -743,16 +844,23 @@ def get_all_leads(
     state: str = Query(None),
     search: str = Query(None),
     start_date: str = Query(None),
-    end_date: str = Query(None)
+    end_date: str = Query(None),
+    status: str = Query(None),
+    is_verified: bool = Query(None)
 ):
-    """Get all non-hidden fire news entries with proper pagination"""
-    query = db.query(FireNews).filter(FireNews.is_hidden == False)
+    """Get all non-hidden fire news entries (excluding 911 emergency data) with proper pagination"""
+    query = db.query(FireNews).filter(
+        FireNews.is_hidden == False,
+        FireNews.data_type != 'emergency_911'
+    )
     
     # Filtering
     if county:
         query = query.filter(FireNews.county == county)
     if state:
         query = query.filter(FireNews.state == state)
+    if is_verified is not None:
+        query = query.filter(FireNews.is_verified == is_verified)
     
     # Date filtering
     if start_date:
@@ -835,7 +943,9 @@ def get_tweet_news(
     state: str = Query(None),
     search: str = Query(None),
     start_date: str = Query(None),
-    end_date: str = Query(None)
+    end_date: str = Query(None),
+    status: str = Query(None),
+    is_verified: bool = Query(None)
 ):
     """Get Twitter Fire Detection Bot entries with proper pagination"""
     query = db.query(FireNews).filter(
@@ -848,6 +958,8 @@ def get_tweet_news(
         query = query.filter(FireNews.county == county)
     if state:
         query = query.filter(FireNews.state == state)
+    if is_verified is not None:
+        query = query.filter(FireNews.is_verified == is_verified)
     
     # Date filtering
     if start_date:
@@ -930,11 +1042,15 @@ def get_web_news(
     state: str = Query(None),
     search: str = Query(None),
     start_date: str = Query(None),
-    end_date: str = Query(None)
+    end_date: str = Query(None),
+    status: str = Query(None),
+    is_verified: bool = Query(None)
 ):
-    """Get web entries (non-Twitter, non-hidden) with proper pagination"""
+    """Get web entries (non-Twitter, non-hidden, non-911) with proper pagination"""
     query = db.query(FireNews).filter(
         FireNews.reporter_name != 'Twitter Fire Detection Bot',
+        FireNews.reporter_name != '911',
+        FireNews.data_type != 'emergency_911',
         FireNews.is_hidden == False
     )
     
@@ -943,6 +1059,8 @@ def get_web_news(
         query = query.filter(FireNews.county == county)
     if state:
         query = query.filter(FireNews.state == state)
+    if is_verified is not None:
+        query = query.filter(FireNews.is_verified == is_verified)
     
     # Date filtering
     if start_date:
@@ -1025,7 +1143,9 @@ def get_hidden_news(
     state: str = Query(None),
     search: str = Query(None),
     start_date: str = Query(None),
-    end_date: str = Query(None)
+    end_date: str = Query(None),
+    status: str = Query(None),
+    is_verified: bool = Query(None)
 ):
     """Get hidden fire news entries with proper pagination"""
     query = db.query(FireNews).filter(FireNews.is_hidden == True)
@@ -1035,6 +1155,8 @@ def get_hidden_news(
         query = query.filter(FireNews.county == county)
     if state:
         query = query.filter(FireNews.state == state)
+    if is_verified is not None:
+        query = query.filter(FireNews.is_verified == is_verified)
     
     # Date filtering
     if start_date:
@@ -1117,7 +1239,9 @@ def get_others_news(
     state: str = Query(None),
     search: str = Query(None),
     start_date: str = Query(None),
-    end_date: str = Query(None)
+    end_date: str = Query(None),
+    status: str = Query(None),
+    is_verified: bool = Query(None)
 ):
     """Get fire news entries where reporter_name is empty or null"""
     query = db.query(FireNews).filter(
@@ -1131,6 +1255,8 @@ def get_others_news(
         query = query.filter(FireNews.county == county)
     if state:
         query = query.filter(FireNews.state == state)
+    if is_verified is not None:
+        query = query.filter(FireNews.is_verified == is_verified)
     
     # Date filtering
     if start_date:
@@ -1210,4 +1336,146 @@ def get_others_count(db: Session = Depends(get_db)):
         (FireNews.reporter_name == '') | 
         (FireNews.reporter_name == 'null')
     ).count()
-    return {"count": count} 
+    return {"count": count}
+
+@router.get("/fire-news/911")
+def get_911_emergency_data(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: str = Query('incident_date'),
+    sort_order: str = Query('desc'),
+    county: str = Query(None),
+    state: str = Query(None),
+    search: str = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    is_hidden: bool = Query(None),
+    status: str = Query(None)
+):
+    """Get 911 emergency data entries"""
+    query = db.query(FireNews).filter(FireNews.data_type == 'emergency_911')
+    
+    # Filtering
+    if county:
+        query = query.filter(FireNews.county == county)
+    if state:
+        query = query.filter(FireNews.state == state)
+    if is_hidden is not None:
+        query = query.filter(FireNews.is_hidden == is_hidden)
+    else:
+        # By default, exclude hidden entries
+        query = query.filter(FireNews.is_hidden == False)
+    if status:
+        query = query.filter(FireNews.status == status)
+    
+    # Date filtering - use incident_date for 911 data
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(FireNews.incident_date >= start_datetime)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            query = query.filter(FireNews.incident_date <= end_datetime)
+        except ValueError:
+            pass
+    
+    # Search
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.context.ilike(like)) | 
+            (FireNews.station_name.ilike(like)) |
+            (FireNews.address.ilike(like)) |
+            (FireNews.state.ilike(like))
+        )
+    
+    # Sorting - handle both incident_date and published_date
+    if sort_by == 'incident_date':
+        sort_col = FireNews.incident_date
+    elif sort_by == 'published_date':
+        sort_col = FireNews.published_date
+    else:
+        sort_col = getattr(FireNews, sort_by, FireNews.incident_date)
+    
+    if sort_order == 'desc':
+        sort_col = sort_col.desc()
+    else:
+        sort_col = sort_col.asc()
+    query = query.order_by(sort_col)
+    
+    # Pagination
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "incident_date": n.incident_date.isoformat() if n.incident_date else None,
+                "station_name": n.station_name,
+                "city": n.city,
+                "county": n.county,
+                "address": n.address,
+                "context": n.context,
+                "verified_address": n.verified_address,
+                "latitude": n.latitude,
+                "longitude": n.longitude,
+                "address_accuracy_score": n.address_accuracy_score,
+                "reporter_name": n.reporter_name,
+                "incident_type": n.incident_type,
+                "priority_level": n.priority_level,
+                "response_time": n.response_time,
+                "units_dispatched": n.units_dispatched,
+                "status": n.status,
+                "notes": n.notes,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+            }
+            for n in items
+        ]
+    } 
+
+
+@router.post("/fire-news/add-911-reporter")
+def add_911_reporter(db: Session = Depends(get_db)):
+    """Add a test record with reporter name '911' to make it available in the reporter list"""
+    try:
+        # Check if "911" reporter already exists
+        existing_911 = db.query(FireNews).filter(FireNews.reporter_name == "911").first()
+        if existing_911:
+            return {"message": "Reporter '911' already exists", "status": "exists"}
+        
+        # Create a test record with reporter name "911"
+        test_record = FireNews(
+            title="Test 911 Emergency Record",
+            content="This is a test record to add the '911' reporter name to the system.",
+            reporter_name="911",
+            data_type="emergency_911",
+            is_hidden=True  # Hide it so it doesn't show up in normal queries
+        )
+        
+        db.add(test_record)
+        db.commit()
+        db.refresh(test_record)
+        
+        return {
+            "message": "Reporter '911' added successfully", 
+            "status": "created",
+            "record_id": test_record.id
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error adding 911 reporter: {str(e)}") 

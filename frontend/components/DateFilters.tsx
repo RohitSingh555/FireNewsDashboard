@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface DateFiltersProps {
@@ -11,7 +12,9 @@ export default function DateFilters({ onDateRangeChange, className = '' }: DateF
   const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarPosition, setCalendarPosition] = useState({ top: 0, left: 0, width: 0 });
   const calendarRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Close calendar when clicking outside
   useEffect(() => {
@@ -64,6 +67,24 @@ export default function DateFilters({ onDateRangeChange, className = '' }: DateF
     setSelectedStartDate(null);
     setSelectedEndDate(null);
     onDateRangeChange(null, null);
+  };
+
+  const handleCalendarToggle = () => {
+    if (!isCalendarOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const calendarHeight = 400; // Estimated calendar height
+      
+      // Check if calendar would go below viewport
+      const wouldGoBelow = rect.bottom + calendarHeight > viewportHeight;
+      
+      setCalendarPosition({
+        top: wouldGoBelow ? rect.top + window.scrollY - calendarHeight : rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+    setIsCalendarOpen(!isCalendarOpen);
   };
 
   const isDateInRange = (date: Date) => {
@@ -171,7 +192,8 @@ export default function DateFilters({ onDateRangeChange, className = '' }: DateF
       <div className="border-t border-theme-border pt-4">
         <div className="relative">
           <button
-            onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+            ref={buttonRef}
+            onClick={handleCalendarToggle}
             className="flex items-center justify-between w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <div>
@@ -194,11 +216,16 @@ export default function DateFilters({ onDateRangeChange, className = '' }: DateF
             )}
           </button>
 
-          {/* Calendar Overlay */}
-          {isCalendarOpen && (
+          {/* Calendar Portal */}
+          {isCalendarOpen && typeof window !== 'undefined' && createPortal(
             <div 
               ref={calendarRef}
-              className="absolute top-full left-0 mt-2 z-[99999] bg-theme-card rounded-lg shadow-xl border border-theme-border p-4 min-w-[320px]"
+              className="fixed z-50 bg-theme-card rounded-lg shadow-xl border border-theme-border p-4 min-w-[320px]"
+              style={{
+                top: `${calendarPosition.top}px`,
+                left: `${calendarPosition.left}px`,
+                width: `${Math.max(calendarPosition.width, 320)}px`
+              }}
             >
               {/* Calendar Header */}
               <div className="flex items-center justify-between mb-3">
@@ -261,7 +288,8 @@ export default function DateFilters({ onDateRangeChange, className = '' }: DateF
                   </div>
                 </div>
               )}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
