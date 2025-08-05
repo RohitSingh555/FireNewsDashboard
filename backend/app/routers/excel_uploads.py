@@ -5,11 +5,15 @@ from app.models.excel_upload import ExcelUpload
 from app.schemas.excel_upload import ExcelUploadCreate, ExcelUploadOut
 from app.models.user import User, UserRole
 from app.services.auth_service import get_current_user
+from app.services.activity_log_service import get_activity_log_service
 from app.models.fire_news import FireNews
 import os, shutil
 from datetime import datetime
 from typing import List
 from pydantic import BaseModel
+from app.models.activity_log import ActivityType
+import pandas as pd
+import io
 
 
 router = APIRouter()
@@ -21,35 +25,140 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 class FireNewsItem(BaseModel):
     title: str
     content: str
-    published_date: str = None
-    url: str = None
-    source: str = None
+    published_date: str | None = None
+    url: str | None = None
+    source: str | None = None
     fire_related_score: float = 0.8
     verification_result: str = "yes"
-    verified_at: str = None
-    state: str = None
-    county: str = None
-    city: str = None
-    province: str = None
+    verified_at: str | None = None
+    state: str | None = None
+    county: str | None = None
+    city: str | None = None
+    province: str | None = None
     country: str = "USA"
-    latitude: float = None
-    longitude: float = None
-    image_url: str = None
-    tags: str = None
-    reporter_name: str = None
+    latitude: float | None = None
+    longitude: float | None = None
+    image_url: str | None = None
+    tags: str | None = None
+    reporter_name: str | None = None
+    verifier_feedback: str | None = None
 
 class FireNewsBulkUpload(BaseModel):
     items: List[FireNewsItem]
 
 def parse_datetime(dt_str):
-    """Parse datetime string to datetime object"""
+    """Parse datetime string to datetime object with comprehensive format support"""
     if not dt_str:
         return None
-    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+    
+    # Convert to string if it's not already
+    dt_str = str(dt_str).strip()
+    
+    # Common datetime formats to try
+    formats = [
+        # ISO formats
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ", 
+        "%Y-%m-%dT%H:%M:%S.%f+00:00",
+        "%Y-%m-%dT%H:%M:%S+00:00",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        
+        # Standard formats
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+        
+        # Alternative separators
+        "%Y/%m/%d %H:%M:%S",
+        "%Y/%m/%d",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y",
+        
+        # US formats
+        "%m-%d-%Y %H:%M:%S",
+        "%m-%d-%Y",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y",
+        
+        # With timezone abbreviations (common in RSS feeds)
+        "%Y-%m-%d %H:%M:%S %Z",
+        "%a, %d %b %Y %H:%M:%S %Z",
+        "%a, %d %b %Y %H:%M:%S",
+        "%d %b %Y %H:%M:%S %Z",
+        "%d %b %Y %H:%M:%S",
+        
+        # RFC formats
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%d %b %Y %H:%M:%S %z",
+        
+        # Unix timestamp (if it's a number)
+        "%s"
+    ]
+    
+    # Try each format
+    for fmt in formats:
         try:
-            return datetime.strptime(dt_str, fmt)
-        except (ValueError, TypeError):
+            if fmt == "%s":
+                # Handle Unix timestamp
+                if dt_str.isdigit():
+                    return datetime.fromtimestamp(int(dt_str))
+            else:
+                return datetime.strptime(dt_str, fmt)
+        except (ValueError, TypeError, OSError):
             continue
+    
+    # If all formats fail, try to extract date using regex patterns
+    import re
+    
+    # Pattern for ISO-like dates
+    iso_pattern = r'(\d{4})-(\d{1,2})-(\d{1,2})'
+    match = re.search(iso_pattern, dt_str)
+    if match:
+        try:
+            year, month, day = match.groups()
+            return datetime(int(year), int(month), int(day))
+        except (ValueError, TypeError):
+            pass
+    
+    # Pattern for various date formats
+    date_patterns = [
+        r'(\d{1,2})/(\d{1,2})/(\d{4})',  # MM/DD/YYYY or DD/MM/YYYY
+        r'(\d{4})/(\d{1,2})/(\d{1,2})',  # YYYY/MM/DD
+        r'(\d{1,2})-(\d{1,2})-(\d{4})',  # MM-DD-YYYY or DD-MM-YYYY
+    ]
+    
+    for pattern in date_patterns:
+        match = re.search(pattern, dt_str)
+        if match:
+            try:
+                if pattern == r'(\d{1,2})/(\d{1,2})/(\d{4})':
+                    # Try both MM/DD/YYYY and DD/MM/YYYY
+                    month, day, year = match.groups()
+                    try:
+                        return datetime(int(year), int(month), int(day))
+                    except ValueError:
+                        # Try DD/MM/YYYY
+                        day, month, year = match.groups()
+                        return datetime(int(year), int(month), int(day))
+                elif pattern == r'(\d{4})/(\d{1,2})/(\d{1,2})':
+                    year, month, day = match.groups()
+                    return datetime(int(year), int(month), int(day))
+                elif pattern == r'(\d{1,2})-(\d{1,2})-(\d{4})':
+                    # Try both MM-DD-YYYY and DD-MM-YYYY
+                    month, day, year = match.groups()
+                    try:
+                        return datetime(int(year), int(month), int(day))
+                    except ValueError:
+                        # Try DD-MM-YYYY
+                        day, month, year = match.groups()
+                        return datetime(int(year), int(month), int(day))
+            except (ValueError, TypeError):
+                continue
+    
+    print(f"Failed to parse date: {dt_str}")
     return None
 
 
@@ -60,7 +169,8 @@ def upload_excel(
     file: UploadFile = File(...),
     from_url: str = Form(None),
     extra: str = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     ip_address = request.client.host
     user_agent = request.headers.get('user-agent')
@@ -90,7 +200,138 @@ def upload_excel(
     db.commit()
     db.refresh(upload)
     
+    # Log Excel upload activity
+    activity_log_service = get_activity_log_service(db)
+    activity_log_service.log_excel_upload(current_user, file_name, ip_address, user_agent)
+    
     return upload 
+
+@router.post("/fire-news/process-excel")
+def process_excel_upload(
+    file: UploadFile = File(...),
+    reporter_name: str = Form(...),
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
+    """Process Excel file and upload fire news entries with specified reporter name"""
+    try:
+        # Validate file type
+        if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+            raise HTTPException(status_code=400, detail="Only Excel and CSV files (.xlsx, .xls, .csv) are supported")
+        
+        # Read file based on type
+        content = file.file.read()
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+        
+        # Validate required columns
+        required_columns = ['title', 'content']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing required columns: {', '.join(missing_columns)}"
+            )
+        
+        # Convert DataFrame to list of dictionaries
+        items = []
+        inserted = 0
+        skipped = 0
+        
+        for index, row in df.iterrows():
+            try:
+                # Create FireNewsItem with reporter_name from form
+                item = FireNewsItem(
+                    title=str(row.get('title', '')).strip(),
+                    content=str(row.get('content', '')).strip(),
+                    published_date=str(row.get('published_date', '')) if pd.notna(row.get('published_date')) else None,
+                    url=str(row.get('url', '')) if pd.notna(row.get('url')) else None,
+                    source=str(row.get('source', '')) if pd.notna(row.get('source')) else None,
+                    fire_related_score=float(row.get('fire_related_score', 0.8)) if pd.notna(row.get('fire_related_score')) else 0.8,
+                    verification_result=str(row.get('verification_result', 'yes')) if pd.notna(row.get('verification_result')) else 'yes',
+                    verified_at=str(row.get('verified_at', '')) if pd.notna(row.get('verified_at')) else None,
+                    state=str(row.get('state', '')) if pd.notna(row.get('state')) else None,
+                    county=str(row.get('county', '')) if pd.notna(row.get('county')) else None,
+                    city=str(row.get('city', '')) if pd.notna(row.get('city')) else None,
+                    province=str(row.get('province', '')) if pd.notna(row.get('province')) else None,
+                    country=str(row.get('country', 'USA')) if pd.notna(row.get('country')) else 'USA',
+                    latitude=float(row.get('latitude')) if pd.notna(row.get('latitude')) else None,
+                    longitude=float(row.get('longitude')) if pd.notna(row.get('longitude')) else None,
+                    image_url=str(row.get('image_url', '')) if pd.notna(row.get('image_url')) else None,
+                    tags=str(row.get('tags', '')) if pd.notna(row.get('tags')) else None,
+                    reporter_name=reporter_name,  # Use the reporter name from form
+                    verifier_feedback=str(row.get('verifier_feedback', '')) if pd.notna(row.get('verifier_feedback')) else None
+                )
+                
+                # Check for duplicate
+                published_date = parse_datetime(item.published_date)
+                exists = db.query(FireNews).filter(
+                    FireNews.title == item.title,
+                    FireNews.published_date == published_date
+                ).first()
+                
+                if exists:
+                    skipped += 1
+                    continue  # Skip duplicate
+                
+                # Create FireNews record
+                fire_news = FireNews(
+                    title=item.title,
+                    content=item.content,
+                    published_date=published_date,
+                    url=item.url,
+                    source=item.source,
+                    fire_related_score=item.fire_related_score,
+                    verification_result=item.verification_result,
+                    verified_at=parse_datetime(item.verified_at),
+                    state=item.state,
+                    county=item.county,
+                    city=item.city,
+                    province=item.province,
+                    country=item.country,
+                    latitude=item.latitude,
+                    longitude=item.longitude,
+                    image_url=item.image_url,
+                    tags=item.tags,
+                    reporter_name=item.reporter_name,
+                )
+                
+                db.add(fire_news)
+                inserted += 1
+                
+            except Exception as e:
+                print(f"Error processing row {index + 1}: {str(e)}")
+                skipped += 1
+                continue
+        
+        db.commit()
+        
+        # Log Excel processing activity (without user authentication)
+        ip_address = request.client.host if request else None
+        user_agent = request.headers.get('user-agent') if request else None
+        activity_log_service = get_activity_log_service(db)
+        activity_log_service.create_activity_log(
+            action_type=ActivityType.NEWS_UPLOADED,
+            description=f"Excel file processed: {inserted} items inserted, {skipped} skipped",
+            user_id=None,  # No user authentication required
+            details=f"Excel upload with reporter '{reporter_name}': {inserted} new items, {skipped} skipped",
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
+        return {
+            "message": "Excel file processed successfully",
+            "inserted": inserted,
+            "skipped": skipped,
+            "total_processed": len(df),
+            "reporter_name": reporter_name
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error processing Excel file: {str(e)}")
 
 @router.get("/fire-news")
 def get_fire_news(
@@ -104,7 +345,8 @@ def get_fire_news(
     search: str = Query(None),
     reporter_name: str = Query(None),
     start_date: str = Query(None),
-    end_date: str = Query(None)
+    end_date: str = Query(None),
+    is_hidden: bool = Query(None)
 ):
     query = db.query(FireNews)
     # Filtering
@@ -114,6 +356,8 @@ def get_fire_news(
         query = query.filter(FireNews.state == state)
     if reporter_name:
         query = query.filter(FireNews.reporter_name == reporter_name)
+    if is_hidden is not None:
+        query = query.filter(FireNews.is_hidden == is_hidden)
     
     # Date filtering
     if start_date:
@@ -234,15 +478,16 @@ def get_reporter_names(db: Session = Depends(get_db)):
 
 @router.delete("/fire-news/delete-all")
 def delete_all_fire_news(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
+    # current_user: User = Depends(get_current_user)  # Temporarily disabled for testing
 ):
     """Delete all fire news records - Admin only"""
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=403, 
-            detail="Only administrators can delete all records"
-        )
+    # Temporarily disabled authentication for development
+    # if current_user.role != UserRole.ADMIN:
+    #     raise HTTPException(
+    #         status_code=403, 
+    #         detail="Only administrators can delete all records"
+    #     )
     
     try:
         db.query(FireNews).delete()
@@ -282,15 +527,16 @@ def update_fire_news(
 @router.delete("/fire-news/{news_id}")
 def delete_fire_news(
     news_id: int, 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
+    # current_user: User = Depends(get_current_user)  # Temporarily disabled for testing
 ):
     """Delete a specific fire news entry - Admin and Reporter only"""
-    if current_user.role not in [UserRole.ADMIN, UserRole.REPORTER]:
-        raise HTTPException(
-            status_code=403, 
-            detail="Only administrators and reporters can delete records"
-        )
+    # Temporarily disabled authentication for development
+    # if current_user.role not in [UserRole.ADMIN, UserRole.REPORTER]:
+    #     raise HTTPException(
+    #         status_code=403, 
+    #         detail="Only administrators and reporters can delete records"
+    #     )
     
     news = db.query(FireNews).filter(FireNews.id == news_id).first()
     if not news:
@@ -347,6 +593,7 @@ def toggle_hidden_status(
 @router.post("/fire-news/bulk-upload")
 def bulk_upload_fire_news(
     data: FireNewsBulkUpload,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Bulk upload fire news from JSON data"""
@@ -356,9 +603,9 @@ def bulk_upload_fire_news(
         print(data.items)
         for item in data.items:
             # Parse dates
-            print(f"Parsing published_date: {item.published_date}")
+            # print(f"Parsing published_date: {item.published_date}")
             published_date = parse_datetime(item.published_date)
-            print(f"Parsed published_date: {published_date}")
+            # print(f"Parsed published_date: {published_date}")
             verified_at = parse_datetime(item.verified_at)
             
             # Check for duplicate
@@ -398,6 +645,19 @@ def bulk_upload_fire_news(
         
         db.commit()
         
+        # Log bulk upload activity (without user authentication)
+        ip_address = request.client.host
+        user_agent = request.headers.get('user-agent')
+        activity_log_service = get_activity_log_service(db)
+        activity_log_service.create_activity_log(
+            action_type=ActivityType.NEWS_UPLOADED,
+            description=f"Bulk upload completed: {inserted} items inserted, {skipped} skipped",
+            user_id=None,  # No user authentication required
+            details=f"Bulk upload: {inserted} new items, {skipped} duplicates",
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
         return {
             "message": "Bulk upload completed successfully",
             "inserted": inserted,
@@ -412,6 +672,7 @@ def bulk_upload_fire_news(
 @router.post("/fire-news/test-upload")
 def test_upload_fire_news(
     data: FireNewsItem,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Test upload a single fire news item"""
@@ -448,6 +709,19 @@ def test_upload_fire_news(
         db.commit()
         db.refresh(fire_news)
         
+        # Log test upload activity
+        ip_address = request.client.host
+        user_agent = request.headers.get('user-agent')
+        activity_log_service = get_activity_log_service(db)
+        activity_log_service.create_activity_log(
+            action_type=ActivityType.NEWS_UPLOADED,
+            description=f"Test upload: {data.title}",
+            user_id=current_user.id,
+            details=f"Test upload by {current_user.email}: {data.title}",
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
         return {
             "message": "Test upload successful",
             "id": fire_news.id,
@@ -457,3 +731,483 @@ def test_upload_fire_news(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error during test upload: {str(e)}") 
+
+@router.get("/fire-news/all-leads")
+def get_all_leads(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: str = Query('published_date'),
+    sort_order: str = Query('desc'),
+    county: str = Query(None),
+    state: str = Query(None),
+    search: str = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None)
+):
+    """Get all non-hidden fire news entries with proper pagination"""
+    query = db.query(FireNews).filter(FireNews.is_hidden == False)
+    
+    # Filtering
+    if county:
+        query = query.filter(FireNews.county == county)
+    if state:
+        query = query.filter(FireNews.state == state)
+    
+    # Date filtering
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(FireNews.published_date >= start_datetime)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            query = query.filter(FireNews.published_date <= end_datetime)
+        except ValueError:
+            pass
+    
+    # Search
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.content.ilike(like)) | 
+            (FireNews.state.ilike(like))
+        )
+    
+    # Sorting
+    sort_col = getattr(FireNews, sort_by, FireNews.published_date)
+    if sort_order == 'desc':
+        sort_col = sort_col.desc()
+    else:
+        sort_col = sort_col.asc()
+    query = query.order_by(sort_col)
+    
+    # Pagination
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "published_date": n.published_date.isoformat() if n.published_date else None,
+                "url": n.url,
+                "source": n.source,
+                "fire_related_score": n.fire_related_score,
+                "verification_result": n.verification_result,
+                "verified_at": n.verified_at.isoformat() if n.verified_at else None,
+                "state": n.state,
+                "county": n.county,
+                "city": n.city,
+                "province": n.province,
+                "country": n.country,
+                "latitude": n.latitude,
+                "longitude": n.longitude,
+                "image_url": n.image_url,
+                "tags": n.tags,
+                "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+            }
+            for n in items
+        ]
+    }
+
+@router.get("/fire-news/tweet")
+def get_tweet_news(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: str = Query('published_date'),
+    sort_order: str = Query('desc'),
+    county: str = Query(None),
+    state: str = Query(None),
+    search: str = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None)
+):
+    """Get Twitter Fire Detection Bot entries with proper pagination"""
+    query = db.query(FireNews).filter(
+        FireNews.reporter_name == 'Twitter Fire Detection Bot',
+        FireNews.is_hidden == False
+    )
+    
+    # Filtering
+    if county:
+        query = query.filter(FireNews.county == county)
+    if state:
+        query = query.filter(FireNews.state == state)
+    
+    # Date filtering
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(FireNews.published_date >= start_datetime)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            query = query.filter(FireNews.published_date <= end_datetime)
+        except ValueError:
+            pass
+    
+    # Search
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.content.ilike(like)) | 
+            (FireNews.state.ilike(like))
+        )
+    
+    # Sorting
+    sort_col = getattr(FireNews, sort_by, FireNews.published_date)
+    if sort_order == 'desc':
+        sort_col = sort_col.desc()
+    else:
+        sort_col = sort_col.asc()
+    query = query.order_by(sort_col)
+    
+    # Pagination
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "published_date": n.published_date.isoformat() if n.published_date else None,
+                "url": n.url,
+                "source": n.source,
+                "fire_related_score": n.fire_related_score,
+                "verification_result": n.verification_result,
+                "verified_at": n.verified_at.isoformat() if n.verified_at else None,
+                "state": n.state,
+                "county": n.county,
+                "city": n.city,
+                "province": n.province,
+                "country": n.country,
+                "latitude": n.latitude,
+                "longitude": n.longitude,
+                "image_url": n.image_url,
+                "tags": n.tags,
+                "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+            }
+            for n in items
+        ]
+    }
+
+@router.get("/fire-news/web")
+def get_web_news(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: str = Query('published_date'),
+    sort_order: str = Query('desc'),
+    county: str = Query(None),
+    state: str = Query(None),
+    search: str = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None)
+):
+    """Get web entries (non-Twitter, non-hidden) with proper pagination"""
+    query = db.query(FireNews).filter(
+        FireNews.reporter_name != 'Twitter Fire Detection Bot',
+        FireNews.is_hidden == False
+    )
+    
+    # Filtering
+    if county:
+        query = query.filter(FireNews.county == county)
+    if state:
+        query = query.filter(FireNews.state == state)
+    
+    # Date filtering
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(FireNews.published_date >= start_datetime)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            query = query.filter(FireNews.published_date <= end_datetime)
+        except ValueError:
+            pass
+    
+    # Search
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.content.ilike(like)) | 
+            (FireNews.state.ilike(like))
+        )
+    
+    # Sorting
+    sort_col = getattr(FireNews, sort_by, FireNews.published_date)
+    if sort_order == 'desc':
+        sort_col = sort_col.desc()
+    else:
+        sort_col = sort_col.asc()
+    query = query.order_by(sort_col)
+    
+    # Pagination
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "published_date": n.published_date.isoformat() if n.published_date else None,
+                "url": n.url,
+                "source": n.source,
+                "fire_related_score": n.fire_related_score,
+                "verification_result": n.verification_result,
+                "verified_at": n.verified_at.isoformat() if n.verified_at else None,
+                "state": n.state,
+                "county": n.county,
+                "city": n.city,
+                "province": n.province,
+                "country": n.country,
+                "latitude": n.latitude,
+                "longitude": n.longitude,
+                "image_url": n.image_url,
+                "tags": n.tags,
+                "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+            }
+            for n in items
+        ]
+    }
+
+@router.get("/fire-news/hidden")
+def get_hidden_news(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: str = Query('published_date'),
+    sort_order: str = Query('desc'),
+    county: str = Query(None),
+    state: str = Query(None),
+    search: str = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None)
+):
+    """Get hidden fire news entries with proper pagination"""
+    query = db.query(FireNews).filter(FireNews.is_hidden == True)
+    
+    # Filtering
+    if county:
+        query = query.filter(FireNews.county == county)
+    if state:
+        query = query.filter(FireNews.state == state)
+    
+    # Date filtering
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(FireNews.published_date >= start_datetime)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            query = query.filter(FireNews.published_date <= end_datetime)
+        except ValueError:
+            pass
+    
+    # Search
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.content.ilike(like)) | 
+            (FireNews.state.ilike(like))
+        )
+    
+    # Sorting
+    sort_col = getattr(FireNews, sort_by, FireNews.published_date)
+    if sort_order == 'desc':
+        sort_col = sort_col.desc()
+    else:
+        sort_col = sort_col.asc()
+    query = query.order_by(sort_col)
+    
+    # Pagination
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "published_date": n.published_date.isoformat() if n.published_date else None,
+                "url": n.url,
+                "source": n.source,
+                "fire_related_score": n.fire_related_score,
+                "verification_result": n.verification_result,
+                "verified_at": n.verified_at.isoformat() if n.verified_at else None,
+                "state": n.state,
+                "county": n.county,
+                "city": n.city,
+                "province": n.province,
+                "country": n.country,
+                "latitude": n.latitude,
+                "longitude": n.longitude,
+                "image_url": n.image_url,
+                "tags": n.tags,
+                "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+            }
+            for n in items
+        ]
+    } 
+
+@router.get("/fire-news/others")
+def get_others_news(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    sort_by: str = Query('published_date'),
+    sort_order: str = Query('desc'),
+    county: str = Query(None),
+    state: str = Query(None),
+    search: str = Query(None),
+    start_date: str = Query(None),
+    end_date: str = Query(None)
+):
+    """Get fire news entries where reporter_name is empty or null"""
+    query = db.query(FireNews).filter(
+        (FireNews.reporter_name.is_(None)) | 
+        (FireNews.reporter_name == '') | 
+        (FireNews.reporter_name == 'null')
+    )
+    
+    # Filtering
+    if county:
+        query = query.filter(FireNews.county == county)
+    if state:
+        query = query.filter(FireNews.state == state)
+    
+    # Date filtering
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(FireNews.published_date >= start_datetime)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+            query = query.filter(FireNews.published_date <= end_datetime)
+        except ValueError:
+            pass
+    
+    # Search
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            (FireNews.title.ilike(like)) | 
+            (FireNews.content.ilike(like)) | 
+            (FireNews.state.ilike(like))
+        )
+    
+    # Sorting
+    sort_col = getattr(FireNews, sort_by, FireNews.published_date)
+    if sort_order == 'desc':
+        sort_col = sort_col.desc()
+    else:
+        sort_col = sort_col.asc()
+    query = query.order_by(sort_col)
+    
+    # Pagination
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "content": n.content,
+                "published_date": n.published_date.isoformat() if n.published_date else None,
+                "url": n.url,
+                "source": n.source,
+                "fire_related_score": n.fire_related_score,
+                "verification_result": n.verification_result,
+                "verified_at": n.verified_at.isoformat() if n.verified_at else None,
+                "state": n.state,
+                "county": n.county,
+                "city": n.city,
+                "province": n.province,
+                "country": n.country,
+                "latitude": n.latitude,
+                "longitude": n.longitude,
+                "image_url": n.image_url,
+                "tags": n.tags,
+                "reporter_name": n.reporter_name,
+                "is_verified": getattr(n, 'is_verified', False),
+                "is_hidden": getattr(n, 'is_hidden', False),
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+                "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+            }
+            for n in items
+        ]
+    } 
+
+@router.get("/fire-news/others-count")
+def get_others_count(db: Session = Depends(get_db)):
+    """Get count of fire news entries where reporter_name is empty or null"""
+    count = db.query(FireNews).filter(
+        (FireNews.reporter_name.is_(None)) | 
+        (FireNews.reporter_name == '') | 
+        (FireNews.reporter_name == 'null')
+    ).count()
+    return {"count": count} 

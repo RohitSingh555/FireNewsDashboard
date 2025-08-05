@@ -17,25 +17,32 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
+import ImportModal from './ImportModal';
 
 interface TopNavigationProps {
   activeTab: string;
   onMobileMenuToggle: () => void;
   onAdminModalOpen: () => void;
   isSidebarCollapsed?: boolean;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  onImportSuccess?: () => void;
 }
 
 export default function TopNavigation({ 
   activeTab, 
   onMobileMenuToggle, 
   onAdminModalOpen,
-  isSidebarCollapsed = false
+  isSidebarCollapsed = false,
+  searchQuery = '',
+  onSearchChange,
+  onImportSuccess
 }: TopNavigationProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const notifications = [
     { id: 1, title: 'New fire alert', message: 'Wildfire detected in Northern California', time: '2 min ago', type: 'alert' },
@@ -46,7 +53,7 @@ export default function TopNavigation({
   const quickActions = [
     { label: 'Add News', icon: FiPlus, action: () => console.log('Add news') },
     { label: 'Export Data', icon: FiDownload, action: () => console.log('Export') },
-    { label: 'Import Data', icon: FiUpload, action: () => console.log('Import') },
+    { label: 'Import Data', icon: FiUpload, action: () => setShowImportModal(true) },
     { label: 'Refresh', icon: FiRotateCw, action: () => console.log('Refresh') }
   ];
 
@@ -69,9 +76,10 @@ export default function TopNavigation({
   };
 
   return (
-    <header className={`fixed top-0 right-0 z-40 bg-theme-card border-b border-theme-border shadow-sm transition-all duration-300 ${
-      isSidebarCollapsed ? 'lg:left-16' : 'lg:left-64'
-    } left-0`}>
+    <>
+      <header className={`fixed top-0 right-0 z-40 bg-theme-card border-b border-theme-border shadow-sm transition-all duration-300 ${
+        isSidebarCollapsed ? 'lg:left-16' : 'lg:left-64'
+      } left-0`}>
       <div className="flex items-center justify-between px-4 py-3">
         {/* Left Section */}
         <div className="flex items-center gap-4">
@@ -103,7 +111,7 @@ export default function TopNavigation({
               type="text"
               placeholder="Search news, alerts, reports..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange?.(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary placeholder-theme-secondary focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -228,7 +236,8 @@ export default function TopNavigation({
                   <button
                     onClick={() => {
                       if (user?.role === 'admin' || user?.role === 'ADMIN') {
-                        onAdminModalOpen();
+                        // Navigate to admin page instead of opening modal
+                        window.location.href = '/admin';
                       }
                       setShowUserMenu(false);
                     }}
@@ -249,6 +258,8 @@ export default function TopNavigation({
                     onClick={() => {
                       logout();
                       setShowUserMenu(false);
+                      // Redirect to landing page after logout
+                      window.location.href = '/';
                     }}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
@@ -270,11 +281,24 @@ export default function TopNavigation({
             type="text"
             placeholder="Search..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => onSearchChange?.(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-theme-border rounded-lg bg-theme-background text-theme-primary placeholder-theme-secondary focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
       </div>
     </header>
+
+    {/* Import Modal */}
+    <ImportModal
+      open={showImportModal}
+      onClose={() => setShowImportModal(false)}
+      onSuccess={() => {
+        setShowImportModal(false);
+        if (onImportSuccess) {
+          onImportSuccess();
+        }
+      }}
+    />
+    </>
   );
 } 

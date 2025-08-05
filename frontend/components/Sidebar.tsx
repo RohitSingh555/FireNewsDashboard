@@ -76,13 +76,6 @@ export default function Sidebar({
       description: 'Overview and analytics'
     },
     {
-      id: 'news',
-      label: 'Fire News',
-      icon: FiFileText,
-      color: 'text-orange-500',
-      description: 'Browse and manage fire news'
-    },
-    {
       id: 'alerts',
       label: 'Alerts',
       icon: FiBell,
@@ -185,16 +178,23 @@ export default function Sidebar({
 
   const handleNavClick = (itemId: string) => {
     if (itemId === 'admin') {
-      onAdminModalOpen();
+      // Navigate to admin page instead of opening modal
+      window.location.href = '/admin';
+    } else if (itemId === 'dashboard') {
+      // Navigate to dashboard page
+      window.location.href = '/dashboard';
     } else {
       onTabChange(itemId);
     }
   };
 
   const SidebarContent = () => (
-    <div className={`h-full flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} bg-theme-card border-r border-theme-border`}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-theme-border">
+    <div 
+      className={`h-full flex flex-col transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} bg-theme-card border-r border-theme-border`}
+      style={{ isolation: 'isolate' }}
+    >
+      {/* Header - Fixed */}
+      <div className="flex items-center justify-between p-4 border-b border-theme-border flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg flex-shrink-0">
             <FiZap className={`${isCollapsed ? 'h-4 w-4' : 'h-6 w-6'} text-white`} />
@@ -219,69 +219,81 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav className={`flex-1 overflow-y-auto space-y-3 ${isCollapsed ? 'p-2' : 'p-4'}`}>
-        {/* Main Navigation */}
-        <div className="space-y-1">
-          <h3 className={`text-xs font-semibold text-theme-secondary uppercase tracking-wider ${isCollapsed ? 'sr-only' : ''}`}>
-            Main Navigation
-          </h3>
-          {navigationItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={`w-full flex items-center gap-3 ${isCollapsed ? 'px-2 py-3' : 'px-3 py-4'} rounded-xl transition-all duration-200 group relative ${
-                activeTab === item.id
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 shadow-lg border border-blue-200 dark:border-blue-700'
-                  : 'text-theme-secondary hover:bg-theme-hover hover:text-theme-primary'
-              }`}
-            >
-              <item.icon className={`${isCollapsed ? 'h-8 w-8' : 'h-6 w-6'} ${activeTab === item.id ? 'text-blue-600 dark:text-blue-400' : item.color}`} />
-              {!isCollapsed && (
-                <>
-                  <span className="font-medium">{item.label}</span>
-                  {item.badge && (
-                    <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </>
-              )}
-              {isCollapsed && item.badge && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Admin Navigation */}
-        {canAccessAdmin && (
-          <div className="space-y-1 pt-4 border-t border-theme-border">
+      {/* Navigation - Scrollable */}
+      <nav 
+        className="flex-1 overflow-y-auto overflow-x-hidden" 
+        style={{ 
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch'
+        }}
+        onWheel={(e) => {
+          // Prevent scroll from bubbling up to parent
+          e.stopPropagation();
+        }}
+      >
+        <div className={`space-y-3 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+          {/* Main Navigation */}
+          <div className="space-y-1">
             <h3 className={`text-xs font-semibold text-theme-secondary uppercase tracking-wider ${isCollapsed ? 'sr-only' : ''}`}>
-              Administration
+              Main Navigation
             </h3>
-            {adminItems.map((item) => (
+            {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
-                className={`w-full flex items-center gap-3 ${isCollapsed ? 'px-2 py-3' : 'px-3 py-4'} rounded-xl transition-all duration-200 group ${
+                className={`w-full flex items-center gap-3 ${isCollapsed ? 'px-2 py-3' : 'px-3 py-4'} rounded-xl transition-all duration-200 group relative ${
                   activeTab === item.id
                     ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 shadow-lg border border-blue-200 dark:border-blue-700'
                     : 'text-theme-secondary hover:bg-theme-hover hover:text-theme-primary'
                 }`}
               >
                 <item.icon className={`${isCollapsed ? 'h-8 w-8' : 'h-6 w-6'} ${activeTab === item.id ? 'text-blue-600 dark:text-blue-400' : item.color}`} />
-                {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                {!isCollapsed && (
+                  <>
+                    <span className="font-medium">{item.label}</span>
+                    {item.badge && (
+                      <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+                {isCollapsed && item.badge && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {item.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
-        )}
+
+          {/* Admin Navigation */}
+          {canAccessAdmin && (
+            <div className="space-y-1 pt-4 border-t border-theme-border">
+              <h3 className={`text-xs font-semibold text-theme-secondary uppercase tracking-wider ${isCollapsed ? 'sr-only' : ''}`}>
+                Administration
+              </h3>
+              {adminItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`w-full flex items-center gap-3 ${isCollapsed ? 'px-2 py-3' : 'px-3 py-4'} rounded-xl transition-all duration-200 group ${
+                    activeTab === item.id
+                      ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 text-blue-600 dark:text-blue-400 shadow-lg border border-blue-200 dark:border-blue-700'
+                      : 'text-theme-secondary hover:bg-theme-hover hover:text-theme-primary'
+                  }`}
+                >
+                  <item.icon className={`${isCollapsed ? 'h-8 w-8' : 'h-6 w-6'} ${activeTab === item.id ? 'text-blue-600 dark:text-blue-400' : item.color}`} />
+                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </nav>
 
-      {/* Footer */}
-      <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-theme-border space-y-2`}>
+      {/* Footer - Fixed */}
+      <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-theme-border space-y-2 flex-shrink-0`}>
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
@@ -320,7 +332,11 @@ export default function Sidebar({
 
         {/* Logout */}
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            // Redirect to landing page after logout
+            window.location.href = '/';
+          }}
           className={`w-full flex items-center gap-3 ${isCollapsed ? 'px-2 py-3' : 'px-3 py-4'} rounded-lg hover:bg-theme-hover transition-colors text-theme-secondary hover:text-theme-primary`}
         >
           <FiLogOut className={`${isCollapsed ? 'h-8 w-8' : 'h-6 w-6'}`} />
@@ -346,24 +362,7 @@ export default function Sidebar({
         />
         
         {/* Sidebar */}
-        <div className="absolute left-0 top-0 h-full bg-theme-card border-r border-theme-border shadow-2xl">
-          <div className="flex items-center justify-between p-4 border-b border-theme-border">
-                      <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
-              <FiZap className="h-8 w-8 text-white" />
-            </div>
-              <div>
-                <span className="text-xl font-bold text-theme-primary">FireNews</span>
-                <p className="text-xs text-theme-secondary">Dashboard</p>
-              </div>
-            </div>
-            <button
-              onClick={onMobileToggle}
-              className="p-2 rounded-lg hover:bg-theme-hover transition-colors"
-            >
-              <FiX className="h-6 w-6 text-theme-secondary" />
-            </button>
-          </div>
+        <div className="absolute left-0 top-0 h-full w-64 bg-theme-card border-r border-theme-border shadow-2xl">
           <SidebarContent />
         </div>
       </div>

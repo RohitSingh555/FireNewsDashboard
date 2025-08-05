@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   NewspaperIcon,
   CalendarDaysIcon,
@@ -8,7 +8,8 @@ import {
   XCircleIcon,
   EyeIcon,
   EyeSlashIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 interface DataTableProps {
@@ -28,8 +29,25 @@ interface DataTableProps {
   className?: string;
 }
 
+// Helper function to round up fire related scores
+function roundFireScore(score: number | null | undefined): number {
+  if (score === null || score === undefined) return 0;
+  
+  // If it's already an integer, return as is
+  if (Number.isInteger(score)) return score;
+  
+  // If it's a float less than 1, multiply by 10 and round up
+  if (score < 1) {
+    return Math.ceil(score * 10);
+  }
+  
+  // If it's a float >= 1, round up to the nearest integer
+  return Math.ceil(score);
+}
+
 function VerificationBar({ value }: { value: number }) {
-  const percent = Math.max(0, Math.min(10, Number(value))) * 10;
+  const roundedValue = roundFireScore(value);
+  const percent = Math.max(0, Math.min(10, roundedValue)) * 10;
   let barColor = 'bg-gradient-to-r from-teal-400 to-teal-600';
   if (percent < 50) barColor = 'bg-gradient-to-r from-yellow-400 to-orange-500';
   if (percent < 30) barColor = 'bg-gradient-to-r from-red-500 to-red-600';
@@ -39,7 +57,7 @@ function VerificationBar({ value }: { value: number }) {
       <div className="flex-1 h-3 rounded-full bg-gray-200 shadow-inner overflow-hidden">
         <div className={`h-3 rounded-full ${barColor} shadow transition-all duration-500 ease-out`} style={{ width: `${percent}%` }} />
       </div>
-      <span className="text-xs font-semibold text-teal-600 ml-2">{value}/10</span>
+      <span className="text-xs font-semibold text-teal-600 ml-2">{roundedValue}/10</span>
     </div>
   );
 }
@@ -108,6 +126,58 @@ function ActionButton({
   );
 }
 
+// Beautiful Custom Tooltip Component
+function InfoTooltip({ children, content }: { children: React.ReactNode; content: React.ReactNode }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 10
+    });
+    setIsVisible(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsVisible(false);
+  };
+
+  return (
+    <>
+      <div 
+        className="relative inline-block"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {children}
+      </div>
+      {isVisible && (
+        <div 
+          className="fixed z-[9999] animate-fade-in pointer-events-none"
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <div className="bg-gray-900/95 backdrop-blur-sm text-white text-sm rounded-xl shadow-2xl border border-gray-700/50 p-3 max-w-xs">
+            <div className="flex items-start gap-2">
+              <InformationCircleIcon className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="leading-relaxed">
+                {content}
+              </div>
+            </div>
+            {/* Arrow pointing up */}
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1.5 w-3 h-3 bg-gray-900/95 rotate-45" />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function DataTable({
   data,
   selectedIds,
@@ -125,6 +195,7 @@ export default function DataTable({
   className = ''
 }: DataTableProps) {
   const canEdit = userRole === 'admin' || userRole === 'reporter';
+  const isAdmin = userRole === 'admin';
 
   const handleRowClick = (entry: any, event: React.MouseEvent) => {
     // Don't open modal if clicking on checkbox or action buttons
@@ -136,9 +207,10 @@ export default function DataTable({
   };
 
   const getScoreTooltip = (score: number) => {
-    if (score >= 8) return "High Priority - Strong fire-related content";
-    if (score >= 6) return "Medium Priority - Moderate fire-related content";
-    if (score >= 4) return "Low Priority - Weak fire-related content";
+    const roundedScore = roundFireScore(score);
+    if (roundedScore >= 8) return "High Priority - Strong fire-related content";
+    if (roundedScore >= 6) return "Medium Priority - Moderate fire-related content";
+    if (roundedScore >= 4) return "Low Priority - Weak fire-related content";
     return "Very Low Priority - Minimal fire-related content";
   };
 
@@ -190,9 +262,7 @@ export default function DataTable({
                   County {sortBy === 'county' && (sortOrder === 'asc' ? '▲' : '▼')}
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-48">
-                <div className="flex items-center gap-2">Content</div>
-              </th>
+
               <th 
                 className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider cursor-pointer hover:bg-theme-teal-light transition-colors"
                 onClick={() => onSort('fire_related_score')}
@@ -201,26 +271,54 @@ export default function DataTable({
                 <div className="flex items-center gap-2">
                   <FireIcon className="h-4 w-4" />
                   Score {sortBy === 'fire_related_score' && (sortOrder === 'asc' ? '▲' : '▼')}
+                  <InfoTooltip content={
+                    <div>
+                      <div className="font-semibold text-blue-400 mb-1">Fire Related Score</div>
+                      <div className="text-gray-300 text-xs">
+                        AI analysis of fire relevance: 8-10 (High), 6-7 (Medium), 4-5 (Low), 0-3 (Very Low)
+                      </div>
+                    </div>
+                  }>
+                    <InformationCircleIcon 
+                      className="h-5 w-5 text-theme-secondary hover:text-theme-teal-dark transition-colors cursor-help" 
+                    />
+                  </InfoTooltip>
                 </div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-32">
                 <div className="flex items-center gap-2">
                   <ShieldCheckIcon className="h-4 w-4" />
                   Status
+                  <InfoTooltip content={
+                    <div>
+                      <div className="font-semibold text-blue-400 mb-1">Content Status</div>
+                      <div className="text-gray-300 text-xs">
+                        Verification & visibility: Verified (confirmed), Unverified (pending), Hidden (not public)
+                      </div>
+                    </div>
+                  }>
+                    <InformationCircleIcon 
+                      className="h-5 w-5 text-theme-secondary hover:text-theme-teal-dark transition-colors cursor-help" 
+                    />
+                  </InfoTooltip>
                 </div>
               </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-24">
-                <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="h-4 w-4" />
-                  Verify
-                </div>
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-24">
-                <div className="flex items-center gap-2">
-                  <EyeIcon className="h-4 w-4" />
-                  Visibility
-                </div>
-              </th>
+              {isAdmin && (
+                <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-24">
+                  <div className="flex items-center gap-2">
+                    <CheckCircleIcon className="h-4 w-4" />
+                    Verify
+                  </div>
+                </th>
+              )}
+              {isAdmin && (
+                <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-24">
+                  <div className="flex items-center gap-2">
+                    <EyeIcon className="h-4 w-4" />
+                    Visibility
+                  </div>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="bg-theme-card divide-y divide-theme-border">
@@ -240,23 +338,29 @@ export default function DataTable({
                 </td>
                 
                 <td className="px-4 py-3">
-                  <div className="font-semibold text-theme-teal-dark max-w-md truncate group-hover:text-theme-teal-medium transition-colors duration-200" title={entry.title}>
-                    {entry.title}
-                  </div>
+                  {entry.url ? (
+                    <a 
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-theme-teal-dark max-w-md truncate group-hover:text-theme-teal-medium hover:underline transition-colors duration-200 flex items-center gap-1"
+                      title={`${entry.title} - Click to open source article`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {entry.title}
+                      <span className="text-xs text-theme-secondary opacity-60">↗</span>
+                    </a>
+                  ) : (
+                    <div className="font-semibold text-theme-teal-dark max-w-md truncate group-hover:text-theme-teal-medium transition-colors duration-200" title={entry.title}>
+                      {entry.title}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-theme-secondary">
-                  {entry.published_date ? new Date(entry.published_date).toLocaleDateString() : '-'}
+                  {entry.published_date ? new Date(entry.published_date).toLocaleDateString('en-US') : '-'}
                 </td>
                 <td className="px-4 py-3 text-theme-secondary">{entry.state || '-'}</td>
                 <td className="px-4 py-3 text-theme-secondary">{entry.county || '-'}</td>
-                <td className="px-4 py-3 text-sm text-theme-primary">
-                  <div 
-                    className="truncate max-w-xs group-hover:text-theme-secondary transition-colors duration-200" 
-                    title={entry.content || 'No content'}
-                  >
-                    {entry.content ? (entry.content.length > 20 ? `${entry.content.substring(0, 20)}...` : entry.content) : 'N/A'}
-                  </div>
-                </td>
                 <td className="px-4 py-3">
                   {typeof entry.fire_related_score === 'number' ? (
                     <div 
@@ -278,22 +382,24 @@ export default function DataTable({
                   <StatusBadge isVerified={entry.is_verified} isHidden={entry.is_hidden} />
                 </td>
                 
-                {/* Verify Action Column */}
-                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                  <ActionButton
-                    isActive={entry.is_verified}
-                    onClick={() => onToggleVerified(entry.id)}
-                    activeIcon={CheckCircleIcon}
-                    inactiveIcon={XCircleIcon}
-                    activeColor="bg-green-500"
-                    inactiveColor="bg-gray-100 hover:bg-gray-200"
-                    tooltip={entry.is_verified ? 'Click to unverify' : 'Click to verify'}
-                  />
-                </td>
+                {/* Verify Action Column - Admin Only */}
+                {isAdmin && (
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                    <ActionButton
+                      isActive={entry.is_verified}
+                      onClick={() => onToggleVerified(entry.id)}
+                      activeIcon={CheckCircleIcon}
+                      inactiveIcon={XCircleIcon}
+                      activeColor="bg-green-500"
+                      inactiveColor="bg-gray-100 hover:bg-gray-200"
+                      tooltip={entry.is_verified ? 'Click to unverify' : 'Click to verify'}
+                    />
+                  </td>
+                )}
                 
-                {/* Visibility Action Column */}
-                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                  {canEdit ? (
+                {/* Visibility Action Column - Admin Only */}
+                {isAdmin && (
+                  <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                     <ActionButton
                       isActive={entry.is_hidden}
                       onClick={() => onToggleHidden(entry.id)}
@@ -303,12 +409,8 @@ export default function DataTable({
                       inactiveColor="bg-gray-100 hover:bg-gray-200"
                       tooltip={entry.is_hidden ? 'Click to show' : 'Click to hide'}
                     />
-                  ) : (
-                    <div className="p-2 rounded-lg bg-gray-100 opacity-50">
-                      <EyeIcon className="h-4 w-4 text-gray-400" />
-                    </div>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

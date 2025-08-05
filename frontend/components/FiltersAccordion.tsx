@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import SearchFilters from './SearchFilters';
 import DateFilters from './DateFilters';
+import TagFilter from './TagFilter';
+
+interface Tag {
+  id: number;
+  name: string;
+  category?: string;
+  color?: string;
+}
 
 interface FiltersAccordionProps {
   searchInput: string;
@@ -13,6 +21,8 @@ interface FiltersAccordionProps {
   states: string[];
   counties: string[];
   onDateRangeChange: (startDate: Date | null, endDate: Date | null) => void;
+  selectedTags: Tag[];
+  onTagsChange: (tags: Tag[]) => void;
   className?: string;
 }
 
@@ -26,6 +36,8 @@ export default function FiltersAccordion({
   states,
   counties,
   onDateRangeChange,
+  selectedTags,
+  onTagsChange,
   className = ''
 }: FiltersAccordionProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -79,6 +91,15 @@ export default function FiltersAccordion({
                 onDateRangeChange={onDateRangeChange}
               />
             </div>
+          </div>
+
+          {/* Tag Filters */}
+          <div className="border-t border-theme-border pt-6">
+            <h3 className="text-sm font-medium text-theme-secondary mb-3">Filter by Tags</h3>
+            <TagFilter
+              selectedTags={selectedTags}
+              onTagsChange={onTagsChange}
+            />
           </div>
         </div>
       </div>

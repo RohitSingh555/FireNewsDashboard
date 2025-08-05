@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 interface PaginationProps {
   currentPage: number;
@@ -59,67 +59,83 @@ export default function Pagination({
   };
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${className}`}>
-      {/* Items Info */}
-      <div className="text-sm text-theme-secondary">
-        Showing {startItem} - {endItem} of {totalItems} items
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-6 ${className}`}>
+      {/* Items Info - More subtle */}
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        {totalItems > 0 ? (
+          <>
+            Showing <span className="font-medium text-gray-700 dark:text-gray-300">{startItem}-{endItem}</span> of{' '}
+            <span className="font-medium text-gray-700 dark:text-gray-300">{totalItems}</span> items
+          </>
+        ) : (
+          <span className="text-gray-500 dark:text-gray-400">No items to display</span>
+        )}
       </div>
 
-      {/* Page Size Selector */}
+      {/* Page Size Selector - More compact */}
       {onPageSizeChange && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-theme-secondary">Show:</span>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-500 dark:text-gray-400">Show</span>
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="px-2 py-1 text-sm border border-theme-border rounded-lg focus:ring-2 focus:ring-theme-teal-dark focus:border-transparent bg-theme-card text-theme-primary"
+            className="px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors"
           >
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
             <option value={100}>100</option>
           </select>
-          <span className="text-sm text-theme-secondary">per page</span>
+          <span className="text-gray-500 dark:text-gray-400">per page</span>
         </div>
       )}
 
-      {/* Pagination Controls */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-3 py-2 text-sm border border-theme-border rounded-l-lg bg-theme-card text-theme-primary hover:bg-theme-teal-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronLeftIcon className="h-4 w-4 text-theme-primary" />
-        </button>
+      {/* Pagination Controls - Minimal design */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          {/* Previous button */}
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+            aria-label="Previous page"
+          >
+            <FiChevronLeft className="h-4 w-4" />
+          </button>
 
-        {getPageNumbers().map((page, index) => (
-          <React.Fragment key={index}>
-            {page === '...' ? (
-              <span className="px-3 py-2 text-sm text-theme-disabled">...</span>
-            ) : (
-              <button
-                onClick={() => onPageChange(page as number)}
-                className={`px-3 py-2 text-sm border-t border-b border-theme-border ${
-                  currentPage === page
-                    ? 'bg-theme-teal-dark text-white border-theme-teal-dark'
-                    : 'bg-theme-card text-theme-primary hover:bg-theme-teal-light'
-                } transition-colors`}
-              >
-                {page}
-              </button>
-            )}
-          </React.Fragment>
-        ))}
+          {/* Page numbers */}
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, index) => (
+              <React.Fragment key={index}>
+                {page === '...' ? (
+                  <span className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">•••</span>
+                ) : (
+                  <button
+                    onClick={() => onPageChange(page as number)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
 
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-3 py-2 text-sm border border-theme-border rounded-r-lg bg-theme-card text-theme-primary hover:bg-theme-teal-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronRightIcon className="h-4 w-4 text-theme-primary" />
-        </button>
-      </div>
+          {/* Next button */}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+            aria-label="Next page"
+          >
+            <FiChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 } 

@@ -23,8 +23,9 @@ class FireNews(Base):
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     image_url = Column(String(500), nullable=True)
-    tags = Column(String(255), nullable=True)
+    tags = Column(String(255), nullable=True)  # Keep for backward compatibility
     reporter_name = Column(String(100), nullable=True)
+    verifier_feedback = Column(Text, nullable=True)  # Feedback added by the verifier
     is_verified = Column(Boolean, default=False, nullable=False)
     is_hidden = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -27,25 +27,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       api.get('/auth/me')
         .then(res => setUser(res.data))
         .catch(() => {
-          console.log('Auth failed, creating mock user for testing');
-          // Create a mock user for testing
-          setUser({
-            id: 1,
-            email: 'admin@firenews.com',
-            is_active: true,
-            role: 'admin'
-          });
+          console.log('Auth failed, clearing token and user');
+          localStorage.removeItem('token');
+          setUser(null);
         })
         .finally(() => setLoading(false));
     } else {
-      console.log('No token found, creating mock user for testing');
-      // Create a mock user for testing when no token
-      setUser({
-        id: 1,
-        email: 'admin@firenews.com',
-        is_active: true,
-        role: 'admin'
-      });
+      console.log('No token found, user not authenticated');
+      setUser(null);
       setLoading(false);
     }
   }, []);
@@ -60,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
+    // Redirect to landing page after logout
+    if (typeof window !== 'undefined') {
+      // Use window.location for a full page reload to ensure clean state
+      window.location.href = '/';
+    }
   };
 
   return (
