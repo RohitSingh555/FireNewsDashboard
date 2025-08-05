@@ -19,6 +19,7 @@ import {
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import api from '../lib/axios';
+import BookmarkButton from './BookmarkButton';
 
 interface Emergency911Data {
   id: number;
@@ -69,23 +70,73 @@ interface Emergency911TableProps {
   userRole: string;
 }
 
-// Progress Bar Component for Address Accuracy Score
+// Circular Progress Component for Address Accuracy Score
 function AccuracyBar({ value }: { value: number | null }) {
   if (value === null || value === undefined) {
     return <span className="text-gray-500 text-sm">N/A</span>;
   }
   
   const percent = Math.max(0, Math.min(100, value * 100));
-  let barColor = 'bg-gradient-to-r from-green-400 to-green-600';
-  if (percent < 50) barColor = 'bg-gradient-to-r from-yellow-400 to-orange-500';
-  if (percent < 30) barColor = 'bg-gradient-to-r from-red-500 to-red-600';
+  
+  // Color logic based on accuracy score
+  let strokeColor = '#10b981'; // green-500
+  let textColor = '#059669'; // green-600
+  
+  if (percent < 50) {
+    strokeColor = '#f59e0b'; // amber-500
+    textColor = '#d97706'; // amber-600
+  }
+  if (percent < 30) {
+    strokeColor = '#ef4444'; // red-500
+    textColor = '#dc2626'; // red-600
+  }
+  
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDasharray = circumference;
+  const strokeDashoffset = circumference - (percent / 100) * circumference;
   
   return (
-    <div className="w-full flex items-center gap-2">
-      <div className="flex-1 h-3 rounded-full bg-gray-200 shadow-inner overflow-hidden">
-        <div className={`h-3 rounded-full ${barColor} shadow transition-all duration-500 ease-out`} style={{ width: `${percent}%` }} />
+    <div className="flex items-center justify-center">
+      <div className="relative">
+        <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 40 40">
+          {/* Background circle */}
+          <circle
+            cx="20"
+            cy="20"
+            r={radius}
+            stroke="#e5e7eb"
+            strokeWidth="3"
+            fill="transparent"
+            className="opacity-30"
+          />
+          {/* Progress circle */}
+          <circle
+            cx="20"
+            cy="20"
+            r={radius}
+            stroke={strokeColor}
+            strokeWidth="3"
+            fill="transparent"
+            strokeLinecap="round"
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={strokeDashoffset}
+            className="transition-all duration-1000 ease-out"
+            style={{
+              filter: 'drop-shadow(0 1px 3px rgba(0, 0, 0, 0.1))'
+            }}
+          />
+        </svg>
+        {/* Center text */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span 
+            className="text-xs font-bold"
+            style={{ color: textColor }}
+          >
+            {percent.toFixed(0)}
+          </span>
+        </div>
       </div>
-      <span className="text-xs font-semibold text-gray-600 ml-2">{percent.toFixed(1)}%</span>
     </div>
   );
 }
@@ -177,9 +228,9 @@ function SourceBadge({ reporterName }: { reporterName: string }) {
   const IconComponent = config.icon;
 
   return (
-    <div className={`source-badge flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border shadow-sm transition-all duration-200 hover:shadow-md hover:scale-105 ${config.bgColor} ${config.textColor} ${config.borderColor}`}>
-      <IconComponent className={`h-4 w-4 ${config.iconColor} transition-colors duration-200`} />
-      <span className="font-semibold">{config.label}</span>
+    <div className="flex items-center gap-2">
+      <IconComponent className={`h-4 w-4 ${config.iconColor}`} />
+      <span className="text-sm font-medium text-gray-700">{config.label}</span>
     </div>
   );
 }
@@ -328,6 +379,12 @@ export default function Emergency911Table({
                   Status
                 </div>
               </th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-20">
+                <div className="flex items-center gap-2">
+                  <BookmarkButton newsId={0} dataType="emergency_911" className="hidden" />
+                  <span>Bookmark</span>
+                </div>
+              </th>
               {isAdmin && (
                 <th className="px-4 py-3 text-left text-xs font-bold text-theme-teal-dark uppercase tracking-wider w-24">
                   <div className="flex items-center gap-2">
@@ -406,6 +463,17 @@ export default function Emergency911Table({
                 
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <StatusBadge isVerified={entry.is_verified} isHidden={entry.is_hidden} />
+                </td>
+                
+                {/* Bookmark Column */}
+                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                  <BookmarkButton 
+                    newsId={entry.id} 
+                    dataType="emergency_911"
+                    onBookmarkChange={(isBookmarked) => {
+                      // Optional: Add any additional logic when bookmark status changes
+                    }}
+                  />
                 </td>
                 
                 {isAdmin && (

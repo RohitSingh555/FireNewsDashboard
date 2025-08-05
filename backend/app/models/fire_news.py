@@ -1,8 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float, Text, Boolean
 from sqlalchemy.sql import func
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from sqlalchemy.orm import relationship
+from app.core.db import Base
 
 class FireNews(Base):
     __tablename__ = 'fire_news'
@@ -48,4 +47,7 @@ class FireNews(Base):
     notes = Column(Text, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now()) 
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    bookmarks = relationship("Bookmark", back_populates="news") 

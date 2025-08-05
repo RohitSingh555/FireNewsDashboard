@@ -4,6 +4,7 @@ from .excel_upload import ExcelUpload
 from .activity_log import ActivityLog, ActivityType
 from .tag import Tag
 from .fire_news_tag import FireNewsTag
+from .bookmark import Bookmark
 
 __all__ = [
     "User",
@@ -13,5 +14,6 @@ __all__ = [
     "ActivityLog",
     "ActivityType",
     "Tag",
-    "FireNewsTag"
+    "FireNewsTag",
+    "Bookmark"
 ] 

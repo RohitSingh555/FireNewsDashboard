@@ -29,4 +29,5 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    activity_logs = relationship("ActivityLog", back_populates="user") 
+    activity_logs = relationship("ActivityLog", back_populates="user")
+    bookmarks = relationship("Bookmark", back_populates="user") 

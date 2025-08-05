@@ -1342,7 +1342,7 @@ function InlineFilters({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className={`bg-theme-card rounded-xl shadow-sm border border-theme-border overflow-hidden ${className}`}>
+    <div className={`bg-theme-card rounded-xl shadow-sm border border-theme-border mt-4 overflow-hidden ${className}`}>
       {/* Accordion Header */}
       <button
         onClick={() => setIsOpen(!isOpen)}

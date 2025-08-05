@@ -7,6 +7,7 @@ from app.routers import auth, users
 from app.routers import excel_uploads
 from app.routers import tags
 from app.routers import admin
+from app.routers import bookmarks
 from app.middleware.logging import LoggingMiddleware
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
@@ -30,6 +31,7 @@ app.include_router(users.router, prefix="/admin", tags=["admin"])
 app.include_router(excel_uploads.router, prefix="/api", tags=["excel_uploads"])
 app.include_router(tags.router, prefix="/api", tags=["tags"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(bookmarks.router, prefix="")
 
 @app.get("/")
 def root():

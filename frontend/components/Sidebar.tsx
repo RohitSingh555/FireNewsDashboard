@@ -183,6 +183,9 @@ export default function Sidebar({
     } else if (itemId === 'dashboard') {
       // Navigate to dashboard page
       window.location.href = '/dashboard';
+    } else if (itemId === 'bookmarks') {
+      // Navigate to bookmarks page
+      window.location.href = '/bookmarks';
     } else {
       onTabChange(itemId);
     }
